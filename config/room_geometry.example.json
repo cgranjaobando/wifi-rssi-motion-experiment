@@ -1,0 +1,62 @@
+{
+  "room": {
+    "width_m": 5.8,
+    "height_m": 4.2,
+    "grid_cell_m": 0.25
+  },
+  "receivers": [
+    {
+      "id": "pc_1",
+      "label": "Laptop receiver",
+      "x_m": 2.9,
+      "y_m": 2.1,
+      "z_m": 0.9
+    }
+  ],
+  "radios": [
+    {
+      "id": "radio_001",
+      "network_name": "Neighbor_AP_1",
+      "hardware_address": "aa:bb:cc:dd:ee:01",
+      "x_m": 0.8,
+      "y_m": 0.5,
+      "z_m": 1.8,
+      "band": "2.4 GHz",
+      "channel": "6",
+      "reliability": 0.85
+    },
+    {
+      "id": "radio_002",
+      "network_name": "Neighbor_AP_2",
+      "hardware_address": "aa:bb:cc:dd:ee:02",
+      "x_m": 5.0,
+      "y_m": 0.5,
+      "z_m": 1.8,
+      "band": "5 GHz",
+      "channel": "36",
+      "reliability": 0.8
+    },
+    {
+      "id": "radio_003",
+      "network_name": "Neighbor_AP_3",
+      "hardware_address": "aa:bb:cc:dd:ee:03",
+      "x_m": 5.0,
+      "y_m": 3.7,
+      "z_m": 1.8,
+      "band": "2.4 GHz",
+      "channel": "11",
+      "reliability": 0.75
+    },
+    {
+      "id": "radio_004",
+      "network_name": "Neighbor_AP_4",
+      "hardware_address": "aa:bb:cc:dd:ee:04",
+      "x_m": 0.8,
+      "y_m": 3.7,
+      "z_m": 1.8,
+      "band": "5 GHz",
+      "channel": "44",
+      "reliability": 0.8
+    }
+  ]
+}

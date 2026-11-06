@@ -1,0 +1,3509 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WiFi Motion Map</title>
+  <style>
+    :root {
+      --background: #f5f7fa;
+      --surface: #ffffff;
+      --surface-muted: #eef3f6;
+      --border: #d7e0e7;
+      --text: #17202a;
+      --muted: #667685;
+      --stable: #0d9488;
+      --possible: #d97706;
+      --strong: #dc2626;
+      --accent: #2563eb;
+      --shadow: 0 14px 32px rgba(23, 32, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    .window-bar {
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .window-left,
+    .window-title {
+      display: flex;
+      align-items: center;
+    }
+
+    .window-left {
+      gap: 14px;
+    }
+
+    .window-controls {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .window-control {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: #cbd5e1;
+    }
+
+    .window-control.red {
+      background: #ef4444;
+    }
+
+    .window-control.yellow {
+      background: #f59e0b;
+    }
+
+    .window-control.green {
+      background: #22c55e;
+    }
+
+    .window-title {
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 780;
+    }
+
+    .window-status {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: #344253;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .live-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #22c55e;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .app-shell {
+      min-height: calc(100vh - 50px);
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      background: #fbfcfd;
+      border-right: 1px solid var(--border);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #2563eb, #0d9488);
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 800;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 19px;
+      line-height: 1.2;
+      font-weight: 760;
+    }
+
+    .brand p,
+    .help-text,
+    .field-label,
+    .meta-line {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .control-group {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .control-group h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      color: #344253;
+      font-weight: 760;
+    }
+
+    .nav-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 34px;
+      padding: 8px 10px;
+      border-radius: 7px;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 680;
+    }
+
+    .nav-item.active {
+      background: #e8f0ff;
+      color: #1d4ed8;
+    }
+
+    .nav-count {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 760;
+    }
+
+    .mode-warning {
+      display: none;
+      padding: 10px;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      background: #fffbeb;
+      color: #92400e;
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 620;
+    }
+
+    .mode-warning.visible {
+      display: block;
+    }
+
+    .field-label {
+      display: grid;
+      gap: 6px;
+      font-weight: 650;
+      color: #475569;
+    }
+
+    .file-input {
+      width: 100%;
+      color: #344253;
+      font-size: 12px;
+    }
+
+    .filter-input {
+      width: 100%;
+      min-height: 62px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 8px 9px;
+      color: #263445;
+      background: #ffffff;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .select-input {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 8px 9px;
+      color: #263445;
+      background: #ffffff;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .exclude-router-list {
+      max-height: 176px;
+      overflow: auto;
+      display: grid;
+      gap: 6px;
+    }
+
+    .exclude-router-row {
+      min-height: 34px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #fbfdff;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .exclude-router-row input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+    }
+
+    .exclude-router-name,
+    .exclude-router-detail {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .exclude-router-detail {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 620;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      min-height: 34px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: #263445;
+      border-radius: 7px;
+      padding: 7px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .button.primary {
+      border-color: #1d4ed8;
+      background: #2563eb;
+      color: white;
+    }
+
+    .button:focus-visible,
+    .map-button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid rgba(37, 99, 235, 0.22);
+      outline-offset: 2px;
+    }
+
+    .modal-backdrop[hidden] {
+      display: none;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.44);
+    }
+
+    .modal-panel {
+      width: min(520px, 100%);
+      max-height: min(680px, calc(100vh - 40px));
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 14px;
+      padding: 16px;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 760;
+    }
+
+    .map-settings-list {
+      max-height: 420px;
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+    }
+
+    .content {
+      padding: 24px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 18px;
+    }
+
+    .top-bar,
+    .main-grid,
+    .bottom-grid {
+      min-width: 0;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .top-bar h2 {
+      font-size: 24px;
+      line-height: 1.2;
+      font-weight: 780;
+    }
+
+    .status-cluster {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .metric {
+      min-width: 112px;
+      padding: 10px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 20px rgba(23, 32, 42, 0.04);
+    }
+
+    .metric-label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      display: block;
+      margin-top: 4px;
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 780;
+    }
+
+    .status-value.stable {
+      color: var(--stable);
+    }
+
+    .status-value.possible_movement {
+      color: var(--possible);
+    }
+
+    .status-value.strong_movement {
+      color: var(--strong);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(420px, 1fr) 360px;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .map-panel {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .map-header,
+    .panel-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .map-tools {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .map-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .map-toggle,
+    .map-opacity,
+    .map-button {
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #ffffff;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 680;
+      white-space: nowrap;
+    }
+
+    .map-button {
+      cursor: pointer;
+    }
+
+    .map-button:hover {
+      border-color: #93a4b8;
+      color: #17202a;
+    }
+
+    .map-toggle input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+    }
+
+    .map-opacity input {
+      width: 84px;
+      accent-color: var(--accent);
+    }
+
+    .map-header h3,
+    .panel-header h3 {
+      font-size: 14px;
+      font-weight: 760;
+    }
+
+    .map-stage {
+      width: 100%;
+      height: clamp(360px, 62vh, 560px);
+      display: block;
+      background: #fbfdff;
+    }
+
+    .floor-grid {
+      fill: none;
+      stroke: #edf2f7;
+      stroke-width: 1;
+    }
+
+    .room-wall {
+      fill: rgba(248, 250, 252, 0.82);
+      stroke: #6b7280;
+      stroke-width: 5;
+    }
+
+    .room-detail {
+      fill: none;
+      stroke: #c7d0d9;
+      stroke-width: 2;
+    }
+
+    .room-door {
+      fill: none;
+      stroke: #94a3b8;
+      stroke-width: 2;
+      stroke-dasharray: 5 5;
+    }
+
+    .room-furniture {
+      fill: rgba(226, 232, 240, 0.5);
+      stroke: #c7d0d9;
+      stroke-width: 2;
+    }
+
+    .room-zone {
+      fill: #eef6ff;
+      stroke: #d7e7f7;
+      stroke-width: 2;
+    }
+
+    .scale-label {
+      fill: #334155;
+      font-size: 12px;
+      font-weight: 680;
+    }
+
+    .signal-link {
+      stroke: var(--stable);
+      stroke-linecap: round;
+      opacity: 0.88;
+      transition: stroke 180ms ease, stroke-width 180ms ease, opacity 180ms ease;
+    }
+
+    .signal-link.changed {
+      opacity: 0.96;
+    }
+
+    .signal-link.hidden-path {
+      opacity: 0;
+    }
+
+    .heatmap-grid {
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+
+    .heatmap-cell {
+      stroke: rgba(255, 255, 255, 0.3);
+      stroke-width: 0.5;
+      shape-rendering: crispEdges;
+    }
+
+    .hotspot-node {
+      pointer-events: none;
+      color: #dc2626;
+    }
+
+    .hotspot-ring {
+      fill: rgba(255, 255, 255, 0.78);
+      stroke: currentColor;
+      stroke-width: 2.5;
+      stroke-dasharray: 4 3;
+    }
+
+    .hotspot-dot {
+      fill: currentColor;
+      stroke: #ffffff;
+      stroke-width: 2;
+    }
+
+    .hotspot-label {
+      fill: #111827;
+      font-size: 10px;
+      font-weight: 780;
+      paint-order: stroke;
+      stroke: #ffffff;
+      stroke-width: 4px;
+      text-anchor: middle;
+    }
+
+    .impact-node {
+      pointer-events: none;
+    }
+
+    .impact-halo {
+      fill: rgba(255, 255, 255, 0.86);
+      stroke: currentColor;
+      stroke-width: 3;
+    }
+
+    .impact-dot {
+      fill: currentColor;
+      stroke: #ffffff;
+      stroke-width: 2;
+    }
+
+    .impact-label {
+      fill: #111827;
+      font-size: 10px;
+      font-weight: 780;
+      paint-order: stroke;
+      stroke: #ffffff;
+      stroke-width: 4px;
+      text-anchor: middle;
+    }
+
+    .router-node,
+    .pc-node {
+      cursor: default;
+    }
+
+    .node-label {
+      pointer-events: none;
+      fill: #1f2937;
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .node-meta {
+      pointer-events: none;
+      fill: #64748b;
+      font-size: 10px;
+      font-weight: 620;
+    }
+
+    .change-rank {
+      pointer-events: none;
+      fill: #17202a;
+      font-size: 10px;
+      font-weight: 820;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .router-alias {
+      pointer-events: none;
+      fill: #17202a;
+      font-size: 13px;
+      font-weight: 820;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .pc-dot {
+      fill: #111827;
+      stroke: white;
+      stroke-width: 4;
+    }
+
+    .router-dot {
+      fill: white;
+      stroke: var(--stable);
+      stroke-width: 3;
+      transition: stroke 180ms ease, stroke-width 180ms ease;
+    }
+
+    .router-dot.changed {
+      stroke-width: 5;
+    }
+
+    .router-box {
+      fill: #ffffff;
+      stroke: var(--stable);
+      stroke-width: 3;
+      rx: 7;
+    }
+
+    .router-box.changed {
+      stroke-width: 4;
+    }
+
+    .router-led {
+      fill: var(--stable);
+    }
+
+    .pc-label {
+      pointer-events: none;
+      fill: #ffffff;
+      font-size: 11px;
+      font-weight: 820;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .motion-card {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fbfcfd;
+    }
+
+    .motion-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .motion-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      padding: 6px 10px;
+      border-radius: 7px;
+      background: rgba(13, 148, 136, 0.12);
+      color: var(--stable);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .motion-badge.possible_movement {
+      background: rgba(217, 119, 6, 0.14);
+      color: var(--possible);
+    }
+
+    .motion-badge.strong_movement {
+      background: rgba(220, 38, 38, 0.13);
+      color: var(--strong);
+    }
+
+    .score-track {
+      height: 10px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+    }
+
+    .score-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: var(--stable);
+      transition: width 180ms ease, background 180ms ease;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .detail-tile {
+      padding: 9px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+    }
+
+    .detail-value {
+      display: block;
+      margin-top: 2px;
+      color: #1f2937;
+      font-size: 18px;
+      font-weight: 780;
+    }
+
+    .detail-value.compact {
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .inspector {
+      padding: 16px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .event-slider {
+      width: 100%;
+    }
+
+    .event-list,
+    .router-list {
+      display: grid;
+      gap: 8px;
+      max-height: 330px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .event-row,
+    .router-row {
+      display: grid;
+      gap: 4px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fbfcfd;
+    }
+
+    .row-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 740;
+      color: #243243;
+    }
+
+    .delta {
+      font-variant-numeric: tabular-nums;
+      color: var(--strong);
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 18px;
+    }
+
+    .chart {
+      width: 100%;
+      height: 190px;
+      display: block;
+      background: #fbfdff;
+      border-radius: 0 0 8px 8px;
+    }
+
+    .chart-line {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 3;
+    }
+
+    .chart-dot {
+      fill: white;
+      stroke: var(--accent);
+      stroke-width: 2;
+      cursor: pointer;
+    }
+
+    .empty-state {
+      padding: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--stable);
+    }
+
+    .legend-swatch.possible {
+      background: var(--possible);
+    }
+
+    .legend-swatch.strong {
+      background: var(--strong);
+    }
+
+    .heatmap-legend-gradient {
+      width: 68px;
+      height: 9px;
+      border: 1px solid rgba(15, 23, 42, 0.18);
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(20, 184, 166, 0.24), rgba(245, 158, 11, 0.72), rgba(239, 68, 68, 0.9));
+    }
+
+    .status-strip {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      box-shadow: 0 8px 20px rgba(23, 32, 42, 0.04);
+    }
+
+    @media (max-width: 1100px) {
+      .app-shell,
+      .main-grid,
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .top-bar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .status-cluster {
+        justify-content: flex-start;
+      }
+
+      .status-strip {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .map-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .map-tools,
+      .map-controls {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="window-bar">
+    <div class="window-left">
+      <div class="window-controls" aria-hidden="true">
+        <span class="window-control red"></span>
+        <span class="window-control yellow"></span>
+        <span class="window-control green"></span>
+      </div>
+      <div class="window-title">
+        <span>WiFi RSSI Motion Experiment</span>
+        <span class="meta-line">v1.2 live</span>
+      </div>
+    </div>
+    <div class="window-status">
+      <span><span class="live-dot"></span>Live</span>
+      <span>Sampling: Windows WLAN scan</span>
+      <span>RSSI link view</span>
+    </div>
+  </header>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">Wi</div>
+        <div>
+          <h1>WiFi Motion Map</h1>
+          <p>RSSI-based signal-path visualization</p>
+        </div>
+      </div>
+
+      <section class="control-group">
+        <h2>Live</h2>
+        <p id="liveStatus" class="help-text">Live stream not connected yet.</p>
+        <label class="field-label">
+          Mode
+          <select id="dashboardModeSelect" class="select-input">
+            <option value="demo">Demo · 2 baseline scans</option>
+            <option value="reconstruction">Reconstruction · 20 baseline scans</option>
+            <option value="calibration">Calibration · 60 baseline scans</option>
+          </select>
+        </label>
+        <label class="field-label">
+          Reconstruction
+          <select id="reconstructionMethodSelect" class="select-input">
+            <option value="backprojection">Backprojection</option>
+            <option value="regularized">Regularized</option>
+          </select>
+        </label>
+        <div id="fieldBaselineWarning" class="mode-warning"></div>
+        <div id="modeWarning" class="mode-warning">Replay mode: open this dashboard through the live server URL to watch real WiFi scans.</div>
+        <div class="button-row">
+          <button id="startLiveButton" class="button primary" type="button">Start Live</button>
+          <button id="stopLiveButton" class="button" type="button">Stop</button>
+        </div>
+      </section>
+
+      <section class="control-group">
+        <h2>Remote Receivers</h2>
+        <p id="remoteReceiverStatus" class="help-text">Remote receiver status not loaded yet.</p>
+        <div id="remoteReceiverList" class="exclude-router-list"></div>
+        <div class="button-row">
+          <button id="refreshRemoteReceiversButton" class="button" type="button">Refresh Receivers</button>
+        </div>
+      </section>
+
+      <section class="control-group">
+        <h2>Detection Filters</h2>
+        <label class="field-label">
+          Excluded SSIDs
+          <textarea id="excludedNetworksInput" class="filter-input" rows="3" placeholder="Optional SSIDs to exclude"></textarea>
+        </label>
+        <div class="button-row">
+          <button id="applyFiltersButton" class="button primary" type="button">Apply Filters</button>
+          <button id="clearFiltersButton" class="button" type="button">Clear</button>
+        </div>
+        <p id="filterStatus" class="help-text">No SSIDs excluded</p>
+        <div id="excludeRouterList" class="exclude-router-list"></div>
+      </section>
+
+      <section class="control-group">
+        <h2>Runs</h2>
+        <div class="nav-list">
+          <div class="nav-item active">
+            <span>Live monitor</span>
+            <span id="runCount" class="nav-count">0</span>
+          </div>
+          <div class="nav-item">
+            <span>Latest replay</span>
+            <span class="nav-count">CSV</span>
+          </div>
+        </div>
+        <div class="button-row">
+          <button id="deleteRecordsButton" class="button" type="button">Delete Records</button>
+        </div>
+      </section>
+
+      <section class="control-group">
+        <h2>Replay Data</h2>
+        <label class="field-label">
+          Raw samples CSV
+          <input id="sampleFileInput" class="file-input" type="file" accept=".csv">
+        </label>
+        <label class="field-label">
+          Motion events CSV
+          <input id="eventFileInput" class="file-input" type="file" accept=".csv">
+        </label>
+        <p id="dataStatus" class="help-text">Loading latest experiment files from this folder.</p>
+      </section>
+
+      <section class="control-group">
+        <h2>Playback</h2>
+        <input id="eventSlider" class="event-slider" type="range" min="0" max="0" value="0">
+        <div class="button-row">
+          <button id="playButton" class="button primary" type="button">Play</button>
+          <button id="previousButton" class="button" type="button">Previous</button>
+          <button id="nextButton" class="button" type="button">Next</button>
+        </div>
+      </section>
+
+      <section class="control-group">
+        <h2>Calibration</h2>
+        <p class="help-text">Router positions stay fixed after assignment. Relearn visual positions after moving hardware, or add room geometry for meter distances.</p>
+        <div class="button-row">
+          <button id="resetLayoutButton" class="button" type="button">Relearn Positions</button>
+        </div>
+      </section>
+    </aside>
+
+    <main class="content">
+      <div class="top-bar">
+        <div>
+          <h2>Signal Paths Around This PC</h2>
+          <p class="meta-line">Your PC is the receiver. Routers are signal sources. Movement is inferred when router-to-PC signal paths shift.</p>
+        </div>
+        <div class="status-cluster">
+          <div class="metric">
+            <span class="metric-label">Status</span>
+            <span id="statusValue" class="metric-value status-value stable">stable</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Score</span>
+            <span id="scoreValue" class="metric-value">0.0</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Changed</span>
+            <span id="changedValue" class="metric-value">0/0</span>
+          </div>
+        </div>
+      </div>
+
+      <section class="main-grid">
+        <div class="panel map-panel">
+          <div class="map-header">
+            <h3>Live Floorplan Signal View</h3>
+            <div class="map-tools">
+              <div class="legend">
+                <span class="legend-item"><span class="legend-swatch"></span>Stable</span>
+                <span class="legend-item"><span class="legend-swatch possible"></span>Possible</span>
+                <span class="legend-item"><span class="legend-swatch strong"></span>Strong</span>
+                <span class="legend-item"><span class="heatmap-legend-gradient"></span>Estimated field</span>
+              </div>
+              <div class="map-controls" aria-label="Map layers">
+                <label class="map-toggle">
+                  <input id="heatmapToggle" type="checkbox" checked>
+                  Heatmap
+                </label>
+                <label class="map-toggle">
+                  <input id="pathsToggle" type="checkbox" checked>
+                  Paths
+                </label>
+                <label class="map-opacity">
+                  Opacity
+                  <input id="heatmapOpacitySlider" type="range" min="30" max="100" value="86">
+                </label>
+                <button id="openRouterLabelsButton" class="map-button" type="button">Labels</button>
+                <button id="openRouterVisibilityButton" class="map-button" type="button">Routers</button>
+              </div>
+            </div>
+          </div>
+          <svg id="mapSvg" class="map-stage" viewBox="0 0 900 560" role="img" aria-label="WiFi router signal map"></svg>
+        </div>
+
+        <aside class="panel">
+          <div class="panel-header">
+            <h3>Motion Status</h3>
+            <span id="eventTime" class="meta-line">No event loaded</span>
+          </div>
+          <div class="inspector">
+            <div class="motion-card">
+              <div class="motion-heading">
+                <div>
+                  <p class="help-text">Current state</p>
+                  <span id="motionBadge" class="motion-badge stable">Stable</span>
+                </div>
+                <div>
+                  <p class="help-text">Score</p>
+                  <span id="motionScoreDetail" class="detail-value">0.0</span>
+                </div>
+              </div>
+              <div class="score-track" aria-hidden="true">
+                <div id="motionScoreFill" class="score-fill"></div>
+              </div>
+              <div class="detail-grid">
+                <div class="detail-tile">
+                  <p class="help-text">Changed</p>
+                  <span id="changedDetail" class="detail-value">0/0</span>
+                </div>
+                <div class="detail-tile">
+                  <p class="help-text">Largest shift</p>
+                  <span id="strongestDetail" class="detail-value">0%</span>
+                </div>
+                <div class="detail-tile">
+                  <p class="help-text">Context</p>
+                  <span id="contextDetail" class="detail-value compact">Signal path only</span>
+                </div>
+                <div class="detail-tile">
+                  <p class="help-text">Baseline</p>
+                  <span id="baselineDetail" class="detail-value compact">Static</span>
+                </div>
+                <div class="detail-tile">
+                  <p class="help-text">Estimated area</p>
+                  <span id="impactDetail" class="detail-value compact">No changed path</span>
+                </div>
+                <div class="detail-tile">
+                  <p class="help-text">Field</p>
+                  <span id="fieldDetail" class="detail-value compact">No heatmap</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p class="help-text">Top changed routers</p>
+              <div id="eventList" class="event-list"></div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="bottom-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Motion Score Timeline</h3>
+            <span id="timelineMeta" class="meta-line">0 events</span>
+          </div>
+          <svg id="timelineSvg" class="chart" viewBox="0 0 900 190" role="img" aria-label="Motion score timeline"></svg>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Router Signal Ranges</h3>
+            <span id="routerMeta" class="meta-line">0 routers</span>
+          </div>
+          <div id="routerList" class="router-list" style="padding: 14px;"></div>
+        </div>
+      </section>
+
+      <div class="status-strip">
+        <span id="sourceMode">Starting dashboard</span>
+        <span>Manual floorplan overlay; RSSI changes are signal-path readings.</span>
+        <span id="lastUpdate">Last update: none</span>
+      </div>
+    </main>
+  </div>
+
+  <div id="mapSettingsModal" class="modal-backdrop" hidden>
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="mapSettingsTitle">
+      <div class="modal-header">
+        <div>
+          <h3 id="mapSettingsTitle">Grid Settings</h3>
+          <p id="mapSettingsDescription" class="help-text"></p>
+        </div>
+        <button id="closeMapSettingsButton" class="button" type="button">Close</button>
+      </div>
+      <div id="mapSettingsList" class="map-settings-list"></div>
+      <div class="button-row">
+        <button id="restoreMapSettingsButton" class="button" type="button">Show All</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const defaultSampleFiles = [
+      "enhanced_other_router_motion_test.csv",
+      "other_router_motion_test.csv",
+      "movement_test.csv"
+    ];
+    const defaultEventFiles = [
+      "enhanced_other_router_motion_test_motion_events.csv",
+      "other_router_motion_test_motion_events.csv"
+    ];
+    const liveApiStatusPath = "/api/status";
+    const geometryApiPath = "/api/geometry";
+    const remoteReceiversApiPath = "/api/receivers";
+    const remoteReceiverRefreshMilliseconds = 5000;
+    const demoBaselineScanCount = 2;
+    const reconstructionBaselineScanCount = 20;
+    const calibrationBaselineScanCount = 60;
+    const minimumReconstructionBaselineScans = 10;
+    const liveSampleIntervalSeconds = "0.5";
+    const liveScanSettleSeconds = "0.35";
+    const routerLayoutStorageKey = "wifiMotionRouterLayout:v1";
+    const routerAutoLayoutStorageKey = "wifiMotionRouterAutoLayout:v2";
+    const routerAliasStorageKey = "wifiMotionRouterAliases:v2";
+    const excludedNetworkStorageKey = "wifiMotionExcludedNetworks:v1";
+    const hiddenMapRouterLabelStorageKey = "wifiMotionHiddenMapRouterLabels:v1";
+    const hiddenMapRouterStorageKey = "wifiMotionHiddenMapRouters:v2";
+    const dashboardModeStorageKey = "wifiMotionDashboardMode:v1";
+    const reconstructionMethodStorageKey = "wifiMotionReconstructionMethod:v1";
+    const defaultExcludedNetworkNames = Object.freeze([]);
+    const legacyDefaultExcludedNetworkNames = Object.freeze(["HomeNet", "HomeNet_5G"]);
+    const defaultDashboardMode = "demo";
+    const mapSettingsLabelMode = "labels";
+    const mapSettingsRouterMode = "routers";
+    const dashboardModes = Object.freeze({
+      demo: Object.freeze({
+        label: "Demo",
+        baselineScans: demoBaselineScanCount
+      }),
+      reconstruction: Object.freeze({
+        label: "Reconstruction",
+        baselineScans: reconstructionBaselineScanCount
+      }),
+      calibration: Object.freeze({
+        label: "Calibration",
+        baselineScans: calibrationBaselineScanCount
+      })
+    });
+    const defaultReconstructionMethod = "backprojection";
+    const regularizedReconstructionMethod = "regularized";
+    const mapSize = Object.freeze({ width: 900, height: 560 });
+    const floorplanBounds = Object.freeze({ x: 112, y: 55, width: 676, height: 448 });
+    const approximateFloorplanWidthMeters = 8;
+    const mapPixelsPerMeter = floorplanBounds.width / approximateFloorplanWidthMeters;
+    const defaultSignalChangeThresholdPercent = 2;
+    const timelineSize = Object.freeze({ width: 900, height: 190, padding: 28 });
+    const dragBounds = Object.freeze({ minimumX: 30, maximumX: 870, minimumY: 30, maximumY: 530 });
+    const pcPosition = { x: 450, y: 280 };
+    const signalPathImpactRatio = 0.5;
+    const heatmapGridStepPixels = 18;
+    const heatmapCellGapPixels = 1;
+    const heatmapCorridorSigmaMeters = 0.55;
+    const heatmapMinimumOpacity = 0.08;
+    const heatmapMaximumOpacity = 0.58;
+    const heatmapMinimumVisibleValue = 0.08;
+    const heatmapSaturationDeltaPercent = 8;
+    const heatmapMinimumRouterQuality = 0.55;
+    const heatmapFallbackRouterQuality = 0.55;
+    const heatmapWeakSignalQuality = 0.7;
+    const heatmapWeakSignalPercent = 25;
+    const heatmapSaturatedSignalPercent = 90;
+    const heatmapEndpointSuppressionPower = 0.8;
+    const heatmapEndpointExclusionMeters = 0.75;
+    const heatmapGaussianCoefficient = 0.5;
+    const heatmapOpacityScale = 100;
+    const defaultHeatmapOpacityPercent = 86;
+    const heatmapHotspotMinimumValue = 0.12;
+    const minimumSignalPathLengthPixels = 4;
+    const halfDivisor = 2;
+    const heatmapColorMidpoint = 0.5;
+    const heatmapLowColor = Object.freeze({ red: 20, green: 184, blue: 166 });
+    const heatmapMiddleColor = Object.freeze({ red: 245, green: 158, blue: 11 });
+    const heatmapHighColor = Object.freeze({ red: 239, green: 68, blue: 68 });
+    const degreesInCircle = 360;
+    const degreesToRadians = Math.PI / 180;
+    const maximumVisibleMapRouters = 24;
+    const maximumVisibleRouterRows = 24;
+    const maximumExcludeRouterRows = 24;
+    const maximumRetainedSamples = 1200;
+    const maximumRetainedEvents = 160;
+    const playbackIntervalMilliseconds = 900;
+    const motionScoreGaugeMaximum = 18;
+    const strongDeltaPercent = 6;
+    const possibleMotionScore = 1;
+    const strongMotionScore = 8;
+    const fallbackRouterMinimumRadius = 120;
+    const fallbackRouterMaximumRadius = 245;
+    const signalPercentFloor = 20;
+    const signalPercentSpan = 75;
+    const floorGridStep = 45;
+    const defaultMapPositions = [
+      { x: 300, y: 85 },
+      { x: 630, y: 90 },
+      { x: 770, y: 285 },
+      { x: 610, y: 435 },
+      { x: 275, y: 425 },
+      { x: 190, y: 285 }
+    ];
+    const floorplanShapes = [
+      { tag: "rect", className: "room-wall", x: floorplanBounds.x, y: floorplanBounds.y, width: floorplanBounds.width, height: floorplanBounds.height, rx: 8 },
+      { tag: "line", className: "room-detail", x1: 355, y1: 55, x2: 355, y2: 258 },
+      { tag: "line", className: "room-detail", x1: 355, y1: 332, x2: 355, y2: 503 },
+      { tag: "line", className: "room-detail", x1: 112, y1: 258, x2: 355, y2: 258 },
+      { tag: "line", className: "room-detail", x1: 525, y1: 55, x2: 525, y2: 210 },
+      { tag: "line", className: "room-detail", x1: 525, y1: 290, x2: 525, y2: 503 },
+      { tag: "line", className: "room-detail", x1: 525, y1: 210, x2: 788, y2: 210 },
+      { tag: "line", className: "room-detail", x1: 525, y1: 374, x2: 788, y2: 374 },
+      { tag: "path", className: "room-door", d: "M355 258 A74 74 0 0 1 429 332" },
+      { tag: "path", className: "room-door", d: "M525 210 A80 80 0 0 0 605 290" },
+      { tag: "rect", className: "room-zone", x: 132, y: 75, width: 202, height: 162, rx: 8 },
+      { tag: "rect", className: "room-furniture", x: 145, y: 93, width: 82, height: 46, rx: 8 },
+      { tag: "rect", className: "room-furniture", x: 242, y: 93, width: 68, height: 118, rx: 8 },
+      { tag: "rect", className: "room-zone", x: 546, y: 76, width: 220, height: 112, rx: 8 },
+      { tag: "rect", className: "room-furniture", x: 570, y: 96, width: 70, height: 72, rx: 8 },
+      { tag: "rect", className: "room-furniture", x: 662, y: 96, width: 76, height: 72, rx: 8 },
+      { tag: "rect", className: "room-zone", x: 548, y: 392, width: 218, height: 88, rx: 8 },
+      { tag: "rect", className: "room-furniture", x: 575, y: 418, width: 154, height: 32, rx: 8 },
+      { tag: "rect", className: "room-zone", x: 135, y: 282, width: 198, height: 195, rx: 8 },
+      { tag: "rect", className: "room-furniture", x: 162, y: 315, width: 142, height: 56, rx: 8 },
+      { tag: "circle", className: "room-furniture", cx: 232, cy: 415, r: 26 }
+    ];
+
+    const state = {
+      samples: [],
+      events: [],
+      routers: [],
+      currentEventIndex: 0,
+      isPlaying: false,
+      playTimer: null,
+      liveSource: null,
+      remoteReceiverTimer: null,
+      baselineCount: 0,
+      baselineTotal: 0,
+      remoteReceivers: [],
+      remoteReceiverLastError: "",
+      showHeatmap: true,
+      showSignalPaths: true,
+      heatmapOpacityPercent: defaultHeatmapOpacityPercent,
+      excludedNetworkNames: loadExcludedNetworkNames(),
+      hiddenMapRouterLabelKeys: new Set(loadStoredArray(hiddenMapRouterLabelStorageKey)),
+      hiddenMapRouterKeys: new Set(loadStoredArray(hiddenMapRouterStorageKey)),
+      dashboardMode: loadDashboardMode(),
+      reconstructionMethod: loadReconstructionMethod(),
+      activeMapSettingsMode: null,
+      mapSettingsSnapshot: [],
+      recordDeleteArmed: false,
+      geometry: null,
+      manualPositions: loadManualPositions(),
+      autoPositions: loadStoredObject(routerAutoLayoutStorageKey),
+      routerAliases: loadStoredObject(routerAliasStorageKey)
+    };
+
+    const elements = {
+      liveStatus: document.getElementById("liveStatus"),
+      modeWarning: document.getElementById("modeWarning"),
+      fieldBaselineWarning: document.getElementById("fieldBaselineWarning"),
+      startLiveButton: document.getElementById("startLiveButton"),
+      stopLiveButton: document.getElementById("stopLiveButton"),
+      remoteReceiverStatus: document.getElementById("remoteReceiverStatus"),
+      remoteReceiverList: document.getElementById("remoteReceiverList"),
+      refreshRemoteReceiversButton: document.getElementById("refreshRemoteReceiversButton"),
+      dashboardModeSelect: document.getElementById("dashboardModeSelect"),
+      reconstructionMethodSelect: document.getElementById("reconstructionMethodSelect"),
+      excludedNetworksInput: document.getElementById("excludedNetworksInput"),
+      applyFiltersButton: document.getElementById("applyFiltersButton"),
+      clearFiltersButton: document.getElementById("clearFiltersButton"),
+      filterStatus: document.getElementById("filterStatus"),
+      excludeRouterList: document.getElementById("excludeRouterList"),
+      openRouterLabelsButton: document.getElementById("openRouterLabelsButton"),
+      openRouterVisibilityButton: document.getElementById("openRouterVisibilityButton"),
+      mapSettingsModal: document.getElementById("mapSettingsModal"),
+      mapSettingsTitle: document.getElementById("mapSettingsTitle"),
+      mapSettingsDescription: document.getElementById("mapSettingsDescription"),
+      mapSettingsList: document.getElementById("mapSettingsList"),
+      restoreMapSettingsButton: document.getElementById("restoreMapSettingsButton"),
+      closeMapSettingsButton: document.getElementById("closeMapSettingsButton"),
+      deleteRecordsButton: document.getElementById("deleteRecordsButton"),
+      runCount: document.getElementById("runCount"),
+      sampleFileInput: document.getElementById("sampleFileInput"),
+      eventFileInput: document.getElementById("eventFileInput"),
+      dataStatus: document.getElementById("dataStatus"),
+      eventSlider: document.getElementById("eventSlider"),
+      playButton: document.getElementById("playButton"),
+      previousButton: document.getElementById("previousButton"),
+      nextButton: document.getElementById("nextButton"),
+      resetLayoutButton: document.getElementById("resetLayoutButton"),
+      heatmapToggle: document.getElementById("heatmapToggle"),
+      pathsToggle: document.getElementById("pathsToggle"),
+      heatmapOpacitySlider: document.getElementById("heatmapOpacitySlider"),
+      statusValue: document.getElementById("statusValue"),
+      scoreValue: document.getElementById("scoreValue"),
+      changedValue: document.getElementById("changedValue"),
+      motionBadge: document.getElementById("motionBadge"),
+      motionScoreDetail: document.getElementById("motionScoreDetail"),
+      motionScoreFill: document.getElementById("motionScoreFill"),
+      changedDetail: document.getElementById("changedDetail"),
+      strongestDetail: document.getElementById("strongestDetail"),
+      contextDetail: document.getElementById("contextDetail"),
+      baselineDetail: document.getElementById("baselineDetail"),
+      impactDetail: document.getElementById("impactDetail"),
+      fieldDetail: document.getElementById("fieldDetail"),
+      eventTime: document.getElementById("eventTime"),
+      eventList: document.getElementById("eventList"),
+      mapSvg: document.getElementById("mapSvg"),
+      timelineSvg: document.getElementById("timelineSvg"),
+      timelineMeta: document.getElementById("timelineMeta"),
+      routerList: document.getElementById("routerList"),
+      routerMeta: document.getElementById("routerMeta"),
+      sourceMode: document.getElementById("sourceMode"),
+      lastUpdate: document.getElementById("lastUpdate")
+    };
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let value = "";
+      let inQuotes = false;
+
+      for (let index = 0; index < text.length; index += 1) {
+        const character = text[index];
+        const nextCharacter = text[index + 1];
+
+        if (character === '"' && inQuotes && nextCharacter === '"') {
+          value += '"';
+          index += 1;
+          continue;
+        }
+
+        if (character === '"') {
+          inQuotes = !inQuotes;
+          continue;
+        }
+
+        if (character === "," && !inQuotes) {
+          row.push(value);
+          value = "";
+          continue;
+        }
+
+        if ((character === "\n" || character === "\r") && !inQuotes) {
+          if (character === "\r" && nextCharacter === "\n") {
+            index += 1;
+          }
+          row.push(value);
+          if (row.some((cell) => cell.trim() !== "")) {
+            rows.push(row);
+          }
+          row = [];
+          value = "";
+          continue;
+        }
+
+        value += character;
+      }
+
+      if (value || row.length) {
+        row.push(value);
+        rows.push(row);
+      }
+
+      const headers = rows.shift() || [];
+      return rows.map((cells) => {
+        const record = {};
+        headers.forEach((header, index) => {
+          record[header] = cells[index] || "";
+        });
+        return record;
+      });
+    }
+
+    function parseNumber(value, fallback = 0) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function getRouterKey(networkName, hardwareAddress) {
+      return `${networkName}||${hardwareAddress}`;
+    }
+
+    function getRouterKeyFromSample(sample) {
+      return getRouterKey(sample.network_name, sample.hardware_address);
+    }
+
+    function parseEventChanges(changeText) {
+      if (!changeText) {
+        return [];
+      }
+
+      return changeText.split(";").map((part) => part.trim()).filter(Boolean).map((part) => {
+        const match = part.match(/^(.+)\/([0-9a-f:]{17})\s+([0-9.]+)->([0-9.]+)\s+delta=([+-]?[0-9.]+)/i);
+        if (!match) {
+          return null;
+        }
+
+        return {
+          network_name: match[1],
+          hardware_address: match[2].toLowerCase(),
+          baseline_signal_percent: parseNumber(match[3]),
+          current_signal_percent: parseNumber(match[4]),
+          signal_delta: parseNumber(match[5])
+        };
+      }).filter(Boolean);
+    }
+
+    function normalizeSamples(records) {
+      return records.map((record) => ({
+        collected_at: record.collected_at,
+        network_name: record.network_name,
+        hardware_address: (record.hardware_address || "").toLowerCase(),
+        signal_percent: parseNumber(record.signal_percent),
+        band: record.band,
+        channel: record.channel,
+        gateway_latency_milliseconds: parseNumber(record.gateway_latency_milliseconds),
+        gateway_reachable: record.gateway_reachable === "True" || record.gateway_reachable === "true"
+      })).filter((sample) => sample.network_name && sample.hardware_address);
+    }
+
+    function normalizeEvents(records) {
+      return records.map((record) => ({
+        collected_at: record.collected_at,
+        status: record.status || "stable",
+        score: parseNumber(record.score),
+        changed_signal_count: parseNumber(record.changed_signal_count),
+        watched_signal_count: parseNumber(record.watched_signal_count),
+        strongest_signal_delta: parseNumber(record.strongest_signal_delta),
+        changes: parseEventChanges(record.changes),
+        sensing_event: null
+      }));
+    }
+
+    function aggregateRouters(samples) {
+      const groups = new Map();
+
+      samples.forEach((sample) => {
+        const key = getRouterKeyFromSample(sample);
+        if (!groups.has(key)) {
+          groups.set(key, {
+            key,
+            network_name: sample.network_name,
+            hardware_address: sample.hardware_address,
+            band: sample.band,
+            channel: sample.channel,
+            values: []
+          });
+        }
+
+        groups.get(key).values.push(sample.signal_percent);
+      });
+
+      return [...groups.values()].map((router) => {
+        const min = Math.min(...router.values);
+        const max = Math.max(...router.values);
+        const average = router.values.reduce((sum, value) => sum + value, 0) / router.values.length;
+        return {
+          ...router,
+          minimumSignal: min,
+          maximumSignal: max,
+          signalRange: max - min,
+          averageSignal: Number(average.toFixed(1))
+        };
+      }).sort((first, second) => second.signalRange - first.signalRange || second.averageSignal - first.averageSignal);
+    }
+
+    function hashString(value) {
+      let hash = 0;
+      for (let index = 0; index < value.length; index += 1) {
+        hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0;
+      }
+      return Math.abs(hash);
+    }
+
+    function getRouterAliasNumber(alias) {
+      const parsed = Number(String(alias).replace("R", ""));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function getNextRouterAlias() {
+      const usedNumbers = Object.values(state.routerAliases).map(getRouterAliasNumber);
+      return `R${Math.max(0, ...usedNumbers) + 1}`;
+    }
+
+    function getRouterAlias(routerKey) {
+      if (!state.routerAliases[routerKey]) {
+        state.routerAliases[routerKey] = getNextRouterAlias();
+        saveStoredObject(routerAliasStorageKey, state.routerAliases);
+      }
+      return state.routerAliases[routerKey];
+    }
+
+    function findConfiguredRadio(router) {
+      const normalizedAddress = String(router.hardware_address || "").toLocaleLowerCase();
+      const normalizedName = String(router.network_name || "").toLocaleLowerCase();
+      return state.geometry?.radios?.find((radio) => (
+        String(radio.hardware_address || "").toLocaleLowerCase() === normalizedAddress
+        || String(radio.network_name || "").toLocaleLowerCase() === normalizedName
+      )) || null;
+    }
+
+    function getConfiguredReceiver() {
+      return state.geometry?.receivers?.[0] || null;
+    }
+
+    function metersToMapPosition(xMeters, yMeters) {
+      const room = state.geometry?.room;
+      if (!room?.width_m || !room?.height_m) {
+        return null;
+      }
+
+      return {
+        x: floorplanBounds.x + (xMeters / room.width_m) * floorplanBounds.width,
+        y: floorplanBounds.y + (yMeters / room.height_m) * floorplanBounds.height
+      };
+    }
+
+    function getConfiguredRouterPosition(router) {
+      const radio = findConfiguredRadio(router);
+      if (!radio) {
+        return null;
+      }
+
+      return metersToMapPosition(radio.x_m, radio.y_m);
+    }
+
+    function createRouterFromChange(change) {
+      return {
+        key: getRouterKey(change.network_name, change.hardware_address),
+        network_name: change.network_name,
+        hardware_address: change.hardware_address,
+        band: change.band || "",
+        channel: change.channel || "",
+        values: [change.current_signal_percent],
+        minimumSignal: change.current_signal_percent,
+        maximumSignal: change.current_signal_percent,
+        signalRange: 0,
+        averageSignal: change.current_signal_percent
+      };
+    }
+
+    function estimateRouterPosition(router, index, aliasMap) {
+      const configuredPosition = getConfiguredRouterPosition(router);
+      if (configuredPosition) {
+        return configuredPosition;
+      }
+
+      const manualPosition = state.manualPositions[router.key];
+      if (manualPosition) {
+        return manualPosition;
+      }
+
+      if (state.autoPositions[router.key]) {
+        return state.autoPositions[router.key];
+      }
+
+      const normalizedSignal = Math.max(0, Math.min(1, (router.averageSignal - signalPercentFloor) / signalPercentSpan));
+      const signalRadius = fallbackRouterMaximumRadius - normalizedSignal * (fallbackRouterMaximumRadius - fallbackRouterMinimumRadius);
+      const ringOffset = index % 2 === 0 ? -18 : 24;
+      const radius = signalRadius + ringOffset;
+      const angle = (hashString(router.key) % degreesInCircle) * degreesToRadians;
+      state.autoPositions[router.key] = {
+        x: Math.max(dragBounds.minimumX, Math.min(dragBounds.maximumX, pcPosition.x + Math.cos(angle) * radius)),
+        y: Math.max(dragBounds.minimumY, Math.min(dragBounds.maximumY, pcPosition.y + Math.sin(angle) * radius))
+      };
+      saveStoredObject(routerAutoLayoutStorageKey, state.autoPositions);
+      return state.autoPositions[router.key];
+    }
+
+    function humanizeStatus(status) {
+      if (status === "strong_movement") {
+        return "Strong movement";
+      }
+      if (status === "possible_movement") {
+        return "Possible movement";
+      }
+      return "Stable";
+    }
+
+    function humanizeSpatialContext(value) {
+      if (value === "environment_disturbance") {
+        return "Environment disturbance";
+      }
+      if (value === "possible_presence_change") {
+        return "Presence change";
+      }
+      return "Baseline stable";
+    }
+
+    function getSpatialContext(event) {
+      return event.sensing_event?.derived?.spatial_context || (
+        event.status === "stable" ? "baseline_stable" : "possible_presence_change"
+      );
+    }
+
+    function getBaselineLabel(event) {
+      const baseline = event.sensing_event?.baseline;
+      if (!baseline) {
+        return "CSV replay";
+      }
+      return baseline.adaptive ? `Adaptive ${baseline.adaptation_rate}` : "Static";
+    }
+
+    function getStatusColor(status) {
+      if (status === "strong_movement") {
+        return "var(--strong)";
+      }
+      if (status === "possible_movement") {
+        return "var(--possible)";
+      }
+      return "var(--stable)";
+    }
+
+    function getSignalChangeColor(event, change) {
+      if (!change) {
+        return "var(--stable)";
+      }
+      if (event.status === "strong_movement" || Math.abs(change.signal_delta) >= strongDeltaPercent) {
+        return "var(--strong)";
+      }
+      return "var(--possible)";
+    }
+
+    function getMapRouters(event) {
+      const routersByKey = new Map(state.routers.map((router) => [router.key, router]));
+      const selectedRouters = [];
+      const selectedKeys = new Set();
+
+      event.changes
+        .slice()
+        .sort((first, second) => Math.abs(second.signal_delta) - Math.abs(first.signal_delta))
+        .forEach((change) => {
+          const routerKey = getRouterKey(change.network_name, change.hardware_address);
+          const router = routersByKey.get(routerKey) || createRouterFromChange(change);
+          if (router && !selectedKeys.has(routerKey)) {
+            selectedRouters.push(router);
+            selectedKeys.add(routerKey);
+          }
+        });
+
+      state.routers.forEach((router) => {
+        if (selectedRouters.length >= maximumVisibleMapRouters || selectedKeys.has(router.key)) {
+          return;
+        }
+        selectedRouters.push(router);
+        selectedKeys.add(router.key);
+      });
+
+      return selectedRouters.slice(0, maximumVisibleMapRouters);
+    }
+
+    function getRouterAliasMap(routers, event = getCurrentEvent()) {
+      const aliasRoutersByKey = new Map();
+      state.routers.forEach((router) => aliasRoutersByKey.set(router.key, router));
+      routers.forEach((router) => aliasRoutersByKey.set(router.key, router));
+      event.changes.forEach((change) => {
+        const router = createRouterFromChange(change);
+        aliasRoutersByKey.set(router.key, router);
+      });
+      return new Map([...aliasRoutersByKey.values()].map((router) => [router.key, getRouterAlias(router.key)]));
+    }
+
+    function getChangeAlias(change, aliasMap) {
+      const routerKey = getRouterKey(change.network_name, change.hardware_address);
+      return aliasMap.get(routerKey) || getRouterAlias(routerKey);
+    }
+
+    function createMapRouterLayout(event) {
+      const routers = getMapRouters(event);
+      const aliasMap = getRouterAliasMap(routers, event);
+      const routerMap = new Map(routers.map((router) => [router.key, router]));
+      const positionMap = new Map();
+
+      routers.forEach((router, index) => {
+        positionMap.set(router.key, estimateRouterPosition(router, index, aliasMap));
+      });
+
+      return { routers, aliasMap, routerMap, positionMap };
+    }
+
+    function calculateGeometryDistanceMeters(firstPoint, secondPoint) {
+      const deltaX = firstPoint.x_m - secondPoint.x_m;
+      const deltaY = firstPoint.y_m - secondPoint.y_m;
+      const deltaZ = (firstPoint.z_m || 0) - (secondPoint.z_m || 0);
+      return Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+    }
+
+    function getGeometrySignalPathEstimate(router) {
+      const radio = findConfiguredRadio(router);
+      const receiver = getConfiguredReceiver();
+      if (!radio || !receiver) {
+        return null;
+      }
+
+      const impactMeters = {
+        x_m: receiver.x_m + (radio.x_m - receiver.x_m) * signalPathImpactRatio,
+        y_m: receiver.y_m + (radio.y_m - receiver.y_m) * signalPathImpactRatio,
+        z_m: receiver.z_m + ((radio.z_m || 0) - (receiver.z_m || 0)) * signalPathImpactRatio
+      };
+      const impactPosition = metersToMapPosition(impactMeters.x_m, impactMeters.y_m);
+      if (!impactPosition) {
+        return null;
+      }
+
+      return {
+        impactPosition,
+        pcDistanceMeters: calculateGeometryDistanceMeters(receiver, impactMeters),
+        routerDistanceMeters: calculateGeometryDistanceMeters(radio, impactMeters),
+        hasConfiguredGeometry: true
+      };
+    }
+
+    function getSignalPathEstimate(routerPosition, router = null) {
+      if (router) {
+        const geometryEstimate = getGeometrySignalPathEstimate(router);
+        if (geometryEstimate) {
+          return geometryEstimate;
+        }
+      }
+
+      const impactPosition = {
+        x: pcPosition.x + (routerPosition.x - pcPosition.x) * signalPathImpactRatio,
+        y: pcPosition.y + (routerPosition.y - pcPosition.y) * signalPathImpactRatio
+      };
+      const pcDistancePixels = calculateMapDistance(pcPosition, impactPosition);
+      const routerDistancePixels = calculateMapDistance(routerPosition, impactPosition);
+
+      return {
+        impactPosition,
+        pcDistanceMeters: pcDistancePixels / mapPixelsPerMeter,
+        routerDistanceMeters: routerDistancePixels / mapPixelsPerMeter,
+        hasConfiguredGeometry: false
+      };
+    }
+
+    function calculateMapDistance(firstPoint, secondPoint) {
+      const deltaX = firstPoint.x - secondPoint.x;
+      const deltaY = firstPoint.y - secondPoint.y;
+      return Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    }
+
+    function formatDistanceMeters(value) {
+      return `${value.toFixed(1)}m`;
+    }
+
+    function clamp(value, minimum, maximum) {
+      return Math.max(minimum, Math.min(maximum, value));
+    }
+
+    function getSignalChangeThreshold(event) {
+      const threshold = event.sensing_event?.baseline?.signal_change_threshold;
+      return Number.isFinite(threshold) ? threshold : defaultSignalChangeThresholdPercent;
+    }
+
+    function calculateDeltaWeight(change, event) {
+      const threshold = getSignalChangeThreshold(event);
+      const deltaMagnitude = Math.abs(change.signal_delta);
+      const deltaRange = Math.max(1, heatmapSaturationDeltaPercent - threshold);
+      return clamp((deltaMagnitude - threshold) / deltaRange, 0, 1);
+    }
+
+    function calculateRouterQuality(router, hasManualPosition) {
+      let quality = hasManualPosition ? 1 : heatmapFallbackRouterQuality;
+      if (router.averageSignal < heatmapWeakSignalPercent || router.averageSignal > heatmapSaturatedSignalPercent) {
+        quality *= heatmapWeakSignalQuality;
+      }
+      return clamp(quality, heatmapMinimumRouterQuality, 1);
+    }
+
+    function createChangedHeatmapPaths(event, layout) {
+      return event.changes
+        .map((change) => {
+          const routerKey = getRouterKey(change.network_name, change.hardware_address);
+          const router = layout.routerMap.get(routerKey);
+          const routerPosition = layout.positionMap.get(routerKey);
+          if (!router || !routerPosition) {
+            return null;
+          }
+
+          const pathLengthPixels = calculateMapDistance(pcPosition, routerPosition);
+          if (pathLengthPixels < minimumSignalPathLengthPixels) {
+            return null;
+          }
+
+          const deltaWeight = calculateDeltaWeight(change, event);
+          if (deltaWeight <= 0) {
+            return null;
+          }
+
+          const hasManualPosition = Boolean(state.manualPositions[routerKey]);
+          const routerQuality = calculateRouterQuality(router, hasManualPosition);
+          return {
+            alias: layout.aliasMap.get(routerKey) || getRouterAlias(routerKey),
+            change,
+            routerPosition,
+            weight: deltaWeight * routerQuality
+          };
+        })
+        .filter(Boolean);
+    }
+
+    function calculatePointToSegmentProjection(point, startPoint, endPoint) {
+      const deltaX = endPoint.x - startPoint.x;
+      const deltaY = endPoint.y - startPoint.y;
+      const segmentLengthSquared = deltaX * deltaX + deltaY * deltaY;
+      if (segmentLengthSquared <= 0) {
+        return {
+          ratio: 0,
+          distancePixels: calculateMapDistance(point, startPoint)
+        };
+      }
+
+      const rawRatio = ((point.x - startPoint.x) * deltaX + (point.y - startPoint.y) * deltaY) / segmentLengthSquared;
+      const ratio = clamp(rawRatio, 0, 1);
+      const projectedPoint = {
+        x: startPoint.x + deltaX * ratio,
+        y: startPoint.y + deltaY * ratio
+      };
+
+      return {
+        ratio,
+        distancePixels: calculateMapDistance(point, projectedPoint)
+      };
+    }
+
+    function calculatePathHeatAtPoint(point, path) {
+      const projection = calculatePointToSegmentProjection(point, pcPosition, path.routerPosition);
+      const distanceMeters = projection.distancePixels / mapPixelsPerMeter;
+      const scaledDistance = distanceMeters / heatmapCorridorSigmaMeters;
+      const corridorWeight = Math.exp(-heatmapGaussianCoefficient * scaledDistance * scaledDistance);
+      const endpointWeight = Math.pow(Math.max(0, Math.sin(Math.PI * projection.ratio)), heatmapEndpointSuppressionPower);
+      return path.weight * corridorWeight * endpointWeight;
+    }
+
+    function calculateHeatmapValue(point, paths, normalizer) {
+      if (!paths.length || normalizer <= 0) {
+        return 0;
+      }
+
+      const heat = paths.reduce((total, path) => total + calculatePathHeatAtPoint(point, path), 0);
+      return clamp(heat / normalizer, 0, 1);
+    }
+
+    function interpolateColor(startColor, endColor, ratio) {
+      return {
+        red: Math.round(startColor.red + (endColor.red - startColor.red) * ratio),
+        green: Math.round(startColor.green + (endColor.green - startColor.green) * ratio),
+        blue: Math.round(startColor.blue + (endColor.blue - startColor.blue) * ratio)
+      };
+    }
+
+    function getHeatmapCellColor(value) {
+      if (value <= heatmapColorMidpoint) {
+        const ratio = clamp(value / heatmapColorMidpoint, 0, 1);
+        const color = interpolateColor(heatmapLowColor, heatmapMiddleColor, ratio);
+        return `rgb(${color.red}, ${color.green}, ${color.blue})`;
+      }
+
+      const ratio = clamp((value - heatmapColorMidpoint) / heatmapColorMidpoint, 0, 1);
+      const color = interpolateColor(heatmapMiddleColor, heatmapHighColor, ratio);
+      return `rgb(${color.red}, ${color.green}, ${color.blue})`;
+    }
+
+    function isHeatmapHotspotCandidate(point) {
+      const pcDistanceMeters = calculateMapDistance(pcPosition, point) / mapPixelsPerMeter;
+      return pcDistanceMeters >= heatmapEndpointExclusionMeters;
+    }
+
+    function getHeatmapCellOpacity(value) {
+      const baseOpacity = heatmapMinimumOpacity + (heatmapMaximumOpacity - heatmapMinimumOpacity) * value;
+      return baseOpacity * (state.heatmapOpacityPercent / heatmapOpacityScale);
+    }
+
+    function metersToMapPoint(xMeters, yMeters, room) {
+      return {
+        x: floorplanBounds.x + (xMeters / room.width_m) * floorplanBounds.width,
+        y: floorplanBounds.y + (yMeters / room.height_m) * floorplanBounds.height
+      };
+    }
+
+    function createReconstructionHeatmapModel(event) {
+      const reconstruction = event.sensing_event?.field_reconstruction;
+      if (!state.showHeatmap || !reconstruction?.cells?.length || !reconstruction.room) {
+        return null;
+      }
+
+      const room = reconstruction.room;
+      const cellWidth = (reconstruction.grid_cell_m / room.width_m) * floorplanBounds.width;
+      const cellHeight = (reconstruction.grid_cell_m / room.height_m) * floorplanBounds.height;
+      const cells = reconstruction.cells.map((cell) => {
+        const point = metersToMapPoint(cell.x_m, cell.y_m, room);
+        return {
+          x: point.x - cellWidth / halfDivisor,
+          y: point.y - cellHeight / halfDivisor,
+          width: Math.max(1, cellWidth - heatmapCellGapPixels),
+          height: Math.max(1, cellHeight - heatmapCellGapPixels),
+          value: clamp(cell.score, 0, 1)
+        };
+      });
+      const maximumValue = cells.reduce((highestValue, cell) => Math.max(highestValue, cell.value), 0);
+      const peak = reconstruction.peak;
+      const hotspot = peak ? metersToMapPoint(peak.x_m, peak.y_m, room) : null;
+      const columnCount = Math.ceil(room.width_m / reconstruction.grid_cell_m);
+      const rowCount = Math.ceil(room.height_m / reconstruction.grid_cell_m);
+
+      return {
+        cells,
+        paths: [],
+        maximumValue,
+        hotspotValue: maximumValue,
+        hotspot,
+        rowCount,
+        columnCount,
+        reconstruction,
+        source: "field_reconstruction"
+      };
+    }
+
+    function createHeatmapModel(event, layout) {
+      const reconstructionModel = createReconstructionHeatmapModel(event);
+      if (reconstructionModel) {
+        return reconstructionModel;
+      }
+
+      const paths = createChangedHeatmapPaths(event, layout);
+      const normalizer = paths.reduce((total, path) => total + path.weight, 0);
+      const cells = [];
+      let maximumValue = 0;
+      let hotspotValue = 0;
+      let hotspot = null;
+      let rowCount = 0;
+      let columnCount = 0;
+      const maximumX = floorplanBounds.x + floorplanBounds.width;
+      const maximumY = floorplanBounds.y + floorplanBounds.height;
+
+      if (!paths.length || !state.showHeatmap) {
+        return { cells, paths, maximumValue, hotspotValue, hotspot, rowCount, columnCount };
+      }
+
+      for (let y = floorplanBounds.y; y < maximumY; y += heatmapGridStepPixels) {
+        rowCount += 1;
+        let rowColumnCount = 0;
+        const cellHeight = Math.min(heatmapGridStepPixels - heatmapCellGapPixels, maximumY - y);
+        for (let x = floorplanBounds.x; x < maximumX; x += heatmapGridStepPixels) {
+          rowColumnCount += 1;
+          const cellWidth = Math.min(heatmapGridStepPixels - heatmapCellGapPixels, maximumX - x);
+          const point = {
+            x: x + cellWidth / halfDivisor,
+            y: y + cellHeight / halfDivisor
+          };
+          const value = calculateHeatmapValue(point, paths, normalizer);
+          if (value > maximumValue) {
+            maximumValue = value;
+          }
+          if (value > hotspotValue && isHeatmapHotspotCandidate(point)) {
+            hotspotValue = value;
+            hotspot = point;
+          }
+          if (value >= heatmapMinimumVisibleValue) {
+            cells.push({ x, y, width: cellWidth, height: cellHeight, value });
+          }
+        }
+        columnCount = Math.max(columnCount, rowColumnCount);
+      }
+
+      return { cells, paths, maximumValue, hotspotValue, hotspot, rowCount, columnCount, source: "frontend_path_heatmap" };
+    }
+
+    function getNearestChangedPath(hotspot, paths) {
+      if (!hotspot || !paths.length) {
+        return null;
+      }
+
+      return paths
+        .slice()
+        .sort((first, second) => (
+          calculateMapDistance(hotspot, first.routerPosition) - calculateMapDistance(hotspot, second.routerPosition)
+        ))[0];
+    }
+
+    function getReconstructionModelLabel(modelName = "") {
+      const normalizedModelName = String(modelName).toLocaleLowerCase();
+      if (normalizedModelName.includes("tikhonov") || normalizedModelName.includes(regularizedReconstructionMethod)) {
+        return "Regularized";
+      }
+      return "Backprojection";
+    }
+
+    function getActiveReconstructionLabel(heatmapModel) {
+      if (heatmapModel?.source === "field_reconstruction" && heatmapModel.reconstruction?.model) {
+        return getReconstructionModelLabel(heatmapModel.reconstruction.model);
+      }
+      return getReconstructionModelLabel(state.reconstructionMethod);
+    }
+
+    function getFieldSummary(heatmapModel) {
+      const reconstructionLabel = getActiveReconstructionLabel(heatmapModel);
+      if (!state.showHeatmap) {
+        return `${reconstructionLabel} · heatmap off`;
+      }
+      if (heatmapModel.source === "field_reconstruction") {
+        const confidence = heatmapModel.reconstruction.peak?.confidence ?? 0;
+        return `${reconstructionLabel} · ${heatmapModel.columnCount}x${heatmapModel.rowCount} · peak ${(confidence * heatmapOpacityScale).toFixed(0)}%`;
+      }
+      if (!heatmapModel.paths.length) {
+        return `${reconstructionLabel} · no changed field`;
+      }
+      return `${reconstructionLabel} · fallback ${heatmapModel.columnCount}x${heatmapModel.rowCount} · peak ${(heatmapModel.maximumValue * heatmapOpacityScale).toFixed(0)}%`;
+    }
+
+    function getPrimaryEstimateSummary(event, layout, heatmapModel) {
+      if (heatmapModel.source === "field_reconstruction" && heatmapModel.reconstruction?.peak) {
+        const peak = heatmapModel.reconstruction.peak;
+        return `RTI peak ${formatDistanceMeters(peak.x_m)}, ${formatDistanceMeters(peak.y_m)}`;
+      }
+
+      if (heatmapModel.hotspot && heatmapModel.source === "field_reconstruction") {
+        const peak = heatmapModel.reconstruction.peak;
+        const hotspotGroup = createSvgElement("g", {
+          class: "hotspot-node",
+          transform: `translate(${heatmapModel.hotspot.x} ${heatmapModel.hotspot.y})`
+        });
+        hotspotGroup.appendChild(createSvgElement("circle", { class: "hotspot-ring", r: 13 }));
+        hotspotGroup.appendChild(createSvgElement("circle", { class: "hotspot-dot", r: 4 }));
+        hotspotGroup.appendChild(createSvgElement("text", { class: "hotspot-label", x: 0, y: -18 }, "RTI peak"));
+        hotspotGroup.appendChild(createSvgElement("title", {}, `RSSI Fresnel reconstruction peak at ${formatDistanceMeters(peak.x_m)}, ${formatDistanceMeters(peak.y_m)}. Confidence ${(peak.confidence * heatmapOpacityScale).toFixed(0)}%.`));
+        svg.appendChild(hotspotGroup);
+      } else if (heatmapModel.hotspot && heatmapModel.paths.length > 1 && heatmapModel.hotspotValue >= heatmapHotspotMinimumValue) {
+        const nearestPath = getNearestChangedPath(heatmapModel.hotspot, heatmapModel.paths);
+        return `Area: visual field near ${nearestPath.alias}`;
+      }
+
+      return getPrimaryImpactSummary(event, layout);
+    }
+
+    function getImpactSummary(change, layout) {
+      const routerKey = getRouterKey(change.network_name, change.hardware_address);
+      const routerPosition = layout.positionMap.get(routerKey);
+      if (!routerPosition) {
+        return "Not on map";
+      }
+
+      const router = layout.routerMap.get(routerKey) || createRouterFromChange(change);
+      const estimate = getSignalPathEstimate(routerPosition, router);
+      if (!estimate.hasConfiguredGeometry) {
+        return "Distance needs room geometry";
+      }
+      return `PC ${formatDistanceMeters(estimate.pcDistanceMeters)} · ${formatDistanceMeters(estimate.routerDistanceMeters)} to router`;
+    }
+
+    function getPrimaryImpactSummary(event) {
+      if (!event.changes.length) {
+        return "No changed path";
+      }
+
+      const sortedChanges = event.changes
+        .slice()
+        .sort((first, second) => Math.abs(second.signal_delta) - Math.abs(first.signal_delta));
+      const layout = createMapRouterLayout(event);
+      const primaryChange = sortedChanges[0];
+      const alias = getChangeAlias(primaryChange, layout.aliasMap);
+      return `${alias}: ${getImpactSummary(primaryChange, layout)}`;
+    }
+
+    function renderFloorplan(svg) {
+      for (let x = floorGridStep; x < mapSize.width; x += floorGridStep) {
+        svg.appendChild(createSvgElement("line", {
+          class: "floor-grid",
+          x1: x,
+          y1: 0,
+          x2: x,
+          y2: mapSize.height
+        }));
+      }
+
+      for (let y = floorGridStep; y < mapSize.height; y += floorGridStep) {
+        svg.appendChild(createSvgElement("line", {
+          class: "floor-grid",
+          x1: 0,
+          y1: y,
+          x2: mapSize.width,
+          y2: y
+        }));
+      }
+
+      floorplanShapes.forEach((shape) => {
+        const { tag, className, ...attributes } = shape;
+        svg.appendChild(createSvgElement(tag, { class: className, ...attributes }));
+      });
+
+      svg.appendChild(createSvgElement("text", { class: "scale-label", x: 118, y: 530 }, "Approx. room layout - fixed router assignments"));
+      svg.appendChild(createSvgElement("text", { class: "scale-label", x: 650, y: 530 }, "Distances require room geometry"));
+    }
+
+    function getCurrentEvent() {
+      return state.events[state.currentEventIndex] || {
+        status: "stable",
+        score: 0,
+        changed_signal_count: 0,
+        watched_signal_count: state.routers.length,
+        strongest_signal_delta: 0,
+        changes: [],
+        sensing_event: null
+      };
+    }
+
+    function buildChangeMap(event) {
+      const changeMap = new Map();
+      event.changes.forEach((change) => {
+        changeMap.set(getRouterKey(change.network_name, change.hardware_address), change);
+      });
+      return changeMap;
+    }
+
+    function buildChangeRankMap(event) {
+      const rankMap = new Map();
+      event.changes
+        .slice()
+        .sort((first, second) => Math.abs(second.signal_delta) - Math.abs(first.signal_delta))
+        .forEach((change, index) => {
+          rankMap.set(getRouterKey(change.network_name, change.hardware_address), index + 1);
+        });
+      return rankMap;
+    }
+
+    function createRenderContext() {
+      const event = getCurrentEvent();
+      const layout = createMapRouterLayout(event);
+      const heatmapModel = createHeatmapModel(event, layout);
+      return { event, layout, heatmapModel };
+    }
+
+    function render() {
+      state.routers = aggregateRouters(state.samples);
+      elements.eventSlider.max = Math.max(state.events.length - 1, 0).toString();
+      elements.eventSlider.value = state.currentEventIndex.toString();
+
+      const context = createRenderContext();
+      renderSummary(context);
+      renderMap(context);
+      renderEventList(context);
+      renderTimeline();
+      renderRouterList();
+      renderFilterControls();
+      renderRemoteReceivers();
+      updateFieldBaselineWarning();
+    }
+
+    function renderSummary(context = createRenderContext()) {
+      const { event, layout, heatmapModel } = context;
+      const humanStatus = humanizeStatus(event.status);
+      const gaugeWidth = Math.min(100, (event.score / motionScoreGaugeMaximum) * 100);
+      elements.statusValue.className = `metric-value status-value ${event.status}`;
+      elements.statusValue.textContent = humanStatus;
+      elements.scoreValue.textContent = event.score.toFixed(1);
+      elements.changedValue.textContent = `${event.changed_signal_count}/${event.watched_signal_count}`;
+      elements.motionBadge.className = `motion-badge ${event.status}`;
+      elements.motionBadge.textContent = humanStatus;
+      elements.motionScoreDetail.textContent = event.score.toFixed(1);
+      elements.motionScoreFill.style.width = `${gaugeWidth}%`;
+      elements.motionScoreFill.style.background = getStatusColor(event.status);
+      elements.changedDetail.textContent = `${event.changed_signal_count}/${event.watched_signal_count}`;
+      elements.strongestDetail.textContent = `${event.strongest_signal_delta.toFixed(1)}%`;
+      elements.contextDetail.textContent = humanizeSpatialContext(getSpatialContext(event));
+      elements.baselineDetail.textContent = getBaselineLabel(event);
+      elements.impactDetail.textContent = getPrimaryEstimateSummary(event, layout, heatmapModel);
+      elements.fieldDetail.textContent = getFieldSummary(heatmapModel);
+      elements.eventTime.textContent = event.collected_at || "No event loaded";
+      elements.timelineMeta.textContent = `${state.events.length} events`;
+      elements.routerMeta.textContent = `${state.routers.length} routers`;
+      elements.runCount.textContent = state.events.length.toString();
+      elements.lastUpdate.textContent = `Last update: ${event.collected_at || "none"}`;
+    }
+
+    function renderHeatmapGrid(svg, heatmapModel) {
+      if (!state.showHeatmap || !heatmapModel.cells.length) {
+        return;
+      }
+
+      const group = createSvgElement("g", { class: "heatmap-grid" });
+      heatmapModel.cells.forEach((cell) => {
+        group.appendChild(createSvgElement("rect", {
+          class: "heatmap-cell",
+          x: cell.x,
+          y: cell.y,
+          width: cell.width,
+          height: cell.height,
+          fill: getHeatmapCellColor(cell.value),
+          "fill-opacity": getHeatmapCellOpacity(cell.value)
+        }));
+      });
+      svg.appendChild(group);
+
+      if (heatmapModel.hotspot && heatmapModel.paths.length > 1 && heatmapModel.hotspotValue >= heatmapHotspotMinimumValue) {
+        const nearestPath = getNearestChangedPath(heatmapModel.hotspot, heatmapModel.paths);
+        const hotspotGroup = createSvgElement("g", {
+          class: "hotspot-node",
+          transform: `translate(${heatmapModel.hotspot.x} ${heatmapModel.hotspot.y})`
+        });
+        hotspotGroup.appendChild(createSvgElement("circle", { class: "hotspot-ring", r: 13 }));
+        hotspotGroup.appendChild(createSvgElement("circle", { class: "hotspot-dot", r: 4 }));
+        hotspotGroup.appendChild(createSvgElement("text", { class: "hotspot-label", x: 0, y: -18 }, "estimated area"));
+        hotspotGroup.appendChild(createSvgElement("title", {}, `Highest overlap of changed signal paths near ${nearestPath.alias}. Configure room geometry for meter distances. RSSI estimate only.`));
+        svg.appendChild(hotspotGroup);
+      }
+    }
+
+    function renderMap(context = createRenderContext()) {
+      const { event, layout, heatmapModel } = context;
+      const changeMap = buildChangeMap(event);
+      const svg = elements.mapSvg;
+      svg.textContent = "";
+      renderFloorplan(svg);
+      renderHeatmapGrid(svg, heatmapModel);
+
+      if (!layout.routers.length) {
+        svg.appendChild(createSvgElement("text", { x: 330, y: 285, fill: "#667685", "font-size": 14, "font-weight": 680 }, "Waiting for visible router signals"));
+      }
+
+      const pcGroup = createSvgElement("g", { class: "pc-node", transform: `translate(${pcPosition.x} ${pcPosition.y})` });
+      pcGroup.appendChild(createSvgElement("circle", { class: "pc-dot", r: 17 }));
+      pcGroup.appendChild(createSvgElement("text", { class: "pc-label", x: 0, y: 1 }, "PC"));
+      pcGroup.appendChild(createSvgElement("text", { class: "node-label", x: 24, y: 4 }, "This PC"));
+      pcGroup.appendChild(createSvgElement("text", { class: "node-meta", x: 24, y: 19 }, "WiFi receiver"));
+      svg.appendChild(pcGroup);
+
+      const visibleRouters = layout.routers.filter((router) => !isMapRouterHidden(router.key));
+      if (!visibleRouters.length && layout.routers.length) {
+        svg.appendChild(createSvgElement("text", { x: 318, y: 285, fill: "#667685", "font-size": 14, "font-weight": 680 }, "Selected routers are hidden from the grid"));
+      }
+
+      layout.routers.forEach((router) => {
+        if (isMapRouterHidden(router.key)) {
+          return;
+        }
+
+        const position = layout.positionMap.get(router.key);
+        const change = changeMap.get(router.key);
+        const delta = change ? Math.abs(change.signal_delta) : 0;
+        const color = getSignalChangeColor(event, change);
+        const strokeWidth = change ? Math.min(10, 2 + delta / 4) : 1.8;
+        const alias = layout.aliasMap.get(router.key);
+        const isLabelHidden = isMapRouterLabelHidden(router.key);
+
+        const link = createSvgElement("line", {
+          class: `signal-link${change ? " changed" : ""}${state.showSignalPaths ? "" : " hidden-path"}`,
+          x1: pcPosition.x,
+          y1: pcPosition.y,
+          x2: position.x,
+          y2: position.y,
+          stroke: color,
+          "stroke-width": strokeWidth
+        });
+        svg.insertBefore(link, pcGroup);
+
+        if (change) {
+          const estimate = getSignalPathEstimate(position, router);
+          const impactGroup = createSvgElement("g", {
+            class: "impact-node",
+            transform: `translate(${estimate.impactPosition.x} ${estimate.impactPosition.y})`,
+            style: `color: ${color}`
+          });
+          impactGroup.appendChild(createSvgElement("circle", { class: "impact-halo", r: 10 }));
+          impactGroup.appendChild(createSvgElement("circle", { class: "impact-dot", r: 4 }));
+          impactGroup.appendChild(createSvgElement("text", { class: "impact-label", x: 0, y: -14 }, `${alias} path`));
+          const distanceText = estimate.hasConfiguredGeometry
+            ? `PC ${formatDistanceMeters(estimate.pcDistanceMeters)} · router ${formatDistanceMeters(estimate.routerDistanceMeters)}.`
+            : "Configure room geometry for meter distances.";
+          impactGroup.appendChild(createSvgElement("title", {}, `Estimated signal-path area. ${distanceText} This is not an exact person location.`));
+          svg.appendChild(impactGroup);
+        }
+
+        const group = createSvgElement("g", {
+          class: "router-node",
+          transform: `translate(${position.x} ${position.y})`,
+          "data-router-key": router.key
+        });
+        group.appendChild(createSvgElement("title", {}, `${router.network_name || "Hidden SSID"} · ${router.hardware_address}`));
+
+        if (isLabelHidden) {
+          group.appendChild(createSvgElement("circle", {
+            class: `router-dot${change ? " changed" : ""}`,
+            r: 7,
+            stroke: color
+          }));
+        } else {
+          group.appendChild(createSvgElement("rect", {
+            class: `router-box${change ? " changed" : ""}`,
+            x: -18,
+            y: -14,
+            width: 36,
+            height: 28,
+            rx: 7,
+            stroke: color
+          }));
+          group.appendChild(createSvgElement("circle", { class: "router-led", cx: 10, cy: 6, r: 2, fill: color }));
+          group.appendChild(createSvgElement("text", { class: "router-alias", x: 0, y: 0 }, alias));
+          group.appendChild(createSvgElement("text", { class: "node-label", x: 24, y: -3 }, alias));
+          group.appendChild(createSvgElement("text", { class: "node-meta", x: 24, y: 12 }, `${router.averageSignal}% RSSI`));
+        }
+
+        svg.appendChild(group);
+      });
+    }
+
+    function renderEventList(context = createRenderContext()) {
+      const { event, layout } = context;
+      elements.eventList.textContent = "";
+
+      if (!event.changes.length) {
+        elements.eventList.innerHTML = '<div class="empty-state">No changed signal paths in this event.</div>';
+        return;
+      }
+
+      event.changes
+        .slice()
+        .sort((first, second) => Math.abs(second.signal_delta) - Math.abs(first.signal_delta))
+        .forEach((change, index) => {
+          const row = document.createElement("div");
+          row.className = "event-row";
+          const alias = getChangeAlias(change, layout.aliasMap);
+          const impactSummary = getImpactSummary(change, layout);
+          row.innerHTML = `
+            <div class="row-title">
+              <span>${escapeHtml(alias)} · ${escapeHtml(change.network_name)}</span>
+              <span class="delta">${change.signal_delta > 0 ? "+" : ""}${change.signal_delta.toFixed(1)}%</span>
+            </div>
+            <p class="meta-line">${escapeHtml(change.hardware_address)} · ${change.baseline_signal_percent}% to ${change.current_signal_percent}%</p>
+            <p class="meta-line">Path estimate: ${escapeHtml(impactSummary)}</p>
+          `;
+          elements.eventList.appendChild(row);
+        });
+    }
+
+    function renderTimeline() {
+      const svg = elements.timelineSvg;
+      svg.textContent = "";
+      if (!state.events.length) {
+        svg.appendChild(createSvgElement("text", { x: 24, y: 96, fill: "#667685", "font-size": 13 }, "No motion events loaded"));
+        return;
+      }
+
+      const width = timelineSize.width;
+      const height = timelineSize.height;
+      const padding = timelineSize.padding;
+      const maxScore = Math.max(10, ...state.events.map((event) => event.score));
+      const thresholdY = (threshold) => height - padding - (threshold / maxScore) * (height - padding * 2);
+      [
+        { score: possibleMotionScore, label: "possible", color: "var(--possible)" },
+        { score: strongMotionScore, label: "strong", color: "var(--strong)" }
+      ].forEach((threshold) => {
+        const y = thresholdY(threshold.score);
+        svg.appendChild(createSvgElement("line", {
+          x1: padding,
+          y1: y,
+          x2: width - padding,
+          y2: y,
+          stroke: threshold.color,
+          "stroke-width": 1.4,
+          "stroke-dasharray": "6 6",
+          opacity: 0.6
+        }));
+        svg.appendChild(createSvgElement("text", {
+          x: width - padding - 68,
+          y: y - 6,
+          fill: threshold.color,
+          "font-size": 11,
+          "font-weight": 720
+        }, threshold.label));
+      });
+      const points = state.events.map((event, index) => {
+        const x = padding + (index / Math.max(state.events.length - 1, 1)) * (width - padding * 2);
+        const y = height - padding - (event.score / maxScore) * (height - padding * 2);
+        return { x, y, event, index };
+      });
+
+      const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+      svg.appendChild(createSvgElement("path", { class: "chart-line", d: path }));
+
+      points.forEach((point) => {
+        const dot = createSvgElement("circle", {
+          class: "chart-dot",
+          cx: point.x,
+          cy: point.y,
+          r: point.index === state.currentEventIndex ? 6 : 4,
+          stroke: getStatusColor(point.event.status)
+        });
+        dot.addEventListener("click", () => {
+          state.currentEventIndex = point.index;
+          stopPlayback();
+          render();
+        });
+        svg.appendChild(dot);
+      });
+    }
+
+    function renderRouterList() {
+      elements.routerList.textContent = "";
+      if (!state.routers.length) {
+        elements.routerList.innerHTML = '<div class="empty-state">No router samples loaded.</div>';
+        return;
+      }
+
+      state.routers.slice(0, maximumVisibleRouterRows).forEach((router) => {
+        const row = document.createElement("div");
+        row.className = "router-row";
+        const alias = getRouterAlias(router.key);
+        row.innerHTML = `
+          <div class="row-title">
+            <span>${escapeHtml(alias)} · ${escapeHtml(router.network_name || "Hidden SSID")}</span>
+            <span>${router.signalRange}% range</span>
+          </div>
+          <p class="meta-line">${escapeHtml(router.hardware_address)} · avg ${router.averageSignal}% · ${router.minimumSignal}% to ${router.maximumSignal}%</p>
+        `;
+        elements.routerList.appendChild(row);
+      });
+    }
+
+    function renderRemoteReceivers() {
+      elements.remoteReceiverList.textContent = "";
+      if (state.remoteReceiverLastError) {
+        elements.remoteReceiverStatus.textContent = state.remoteReceiverLastError;
+        elements.remoteReceiverList.innerHTML = '<div class="empty-state">Start the live server on port 8877 to receive remote devices.</div>';
+        return;
+      }
+
+      const receiverCount = state.remoteReceivers.length;
+      if (!receiverCount) {
+        elements.remoteReceiverStatus.textContent = "No remote receivers enrolled yet.";
+        elements.remoteReceiverList.innerHTML = '<div class="empty-state">Run wifi_receiver_agent.py on an owned Windows device to enroll it.</div>';
+        return;
+      }
+
+      elements.remoteReceiverStatus.textContent = `${receiverCount} remote receiver${receiverCount === 1 ? "" : "s"} sending RSSI metadata. These are not merged into detection yet.`;
+      state.remoteReceivers.forEach((receiver) => {
+        const row = document.createElement("div");
+        row.className = "router-row";
+        const strongestSamples = Array.isArray(receiver.strongest_samples)
+          ? receiver.strongest_samples.slice(0, 2)
+          : [];
+        const strongestText = strongestSamples.length
+          ? strongestSamples.map((sample) => `${sample.network_name || "Hidden SSID"} ${sample.signal_percent ?? "?"}%`).join(" · ")
+          : "No samples yet";
+        row.innerHTML = `
+          <div class="row-title">
+            <span>${escapeHtml(receiver.label || receiver.id || "Remote receiver")}</span>
+            <span>${escapeHtml(formatReceiverAge(receiver.age_seconds))}</span>
+          </div>
+          <p class="meta-line">${escapeHtml(receiver.id || "unknown")} · latest ${receiver.latest_sample_count || 0} radios · total ${receiver.total_sample_count || 0}</p>
+          <p class="meta-line">${escapeHtml(strongestText)}</p>
+        `;
+        elements.remoteReceiverList.appendChild(row);
+      });
+    }
+
+    function formatReceiverAge(ageSeconds) {
+      const age = Number(ageSeconds);
+      if (!Number.isFinite(age)) {
+        return "unknown";
+      }
+
+      if (age < 2) {
+        return "live";
+      }
+
+      if (age < 60) {
+        return `${Math.round(age)}s ago`;
+      }
+
+      return `${Math.round(age / 60)}m ago`;
+    }
+
+    function createSvgElement(tagName, attributes, textContent = "") {
+      const element = document.createElementNS("http://www.w3.org/2000/svg", tagName);
+      Object.entries(attributes).forEach(([key, value]) => {
+        element.setAttribute(key, value);
+      });
+      if (textContent) {
+        element.textContent = textContent;
+      }
+      return element;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[character]));
+    }
+
+    function loadStoredObject(storageKey) {
+      try {
+        const value = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveStoredObject(storageKey, value) {
+      localStorage.setItem(storageKey, JSON.stringify(value));
+    }
+
+    function loadStoredArray(storageKey) {
+      try {
+        const value = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveStoredArray(storageKey, value) {
+      localStorage.setItem(storageKey, JSON.stringify(value));
+    }
+
+    function loadManualPositions() {
+      return loadStoredObject(routerLayoutStorageKey);
+    }
+
+    function saveManualPositions() {
+      saveStoredObject(routerLayoutStorageKey, state.manualPositions);
+    }
+
+    function splitNetworkNameList(value) {
+      return String(value)
+        .split(/[,\n;]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    function deduplicateNetworkNames(networkNames) {
+      const seenNames = new Set();
+      const deduplicatedNames = [];
+      networkNames.forEach((networkName) => {
+        const normalizedName = networkName.toLocaleLowerCase();
+        if (seenNames.has(normalizedName)) {
+          return;
+        }
+        seenNames.add(normalizedName);
+        deduplicatedNames.push(networkName);
+      });
+      return deduplicatedNames;
+    }
+
+    function loadExcludedNetworkNames() {
+      try {
+        const savedNames = JSON.parse(localStorage.getItem(excludedNetworkStorageKey) || "null");
+        if (Array.isArray(savedNames)) {
+          const filteredNames = deduplicateNetworkNames(savedNames.map(String).map((name) => name.trim()).filter(Boolean));
+          const normalizedSaved = filteredNames.map((name) => name.toLocaleLowerCase()).sort();
+          const normalizedLegacy = legacyDefaultExcludedNetworkNames.map((name) => name.toLocaleLowerCase()).sort();
+          if (normalizedSaved.length === normalizedLegacy.length && normalizedSaved.every((name, index) => name === normalizedLegacy[index])) {
+            localStorage.setItem(excludedNetworkStorageKey, JSON.stringify([]));
+            return [];
+          }
+          return filteredNames;
+        }
+      } catch {
+        return [...defaultExcludedNetworkNames];
+      }
+      return [...defaultExcludedNetworkNames];
+    }
+
+    function saveExcludedNetworkNames() {
+      localStorage.setItem(excludedNetworkStorageKey, JSON.stringify(state.excludedNetworkNames));
+    }
+
+    function isMapRouterLabelHidden(routerKey) {
+      return state.hiddenMapRouterLabelKeys.has(routerKey);
+    }
+
+    function saveHiddenMapRouterLabelKeys() {
+      saveStoredArray(hiddenMapRouterLabelStorageKey, [...state.hiddenMapRouterLabelKeys]);
+    }
+
+    function setMapRouterLabelHidden(routerKey, hidden) {
+      if (hidden) {
+        state.hiddenMapRouterLabelKeys.add(routerKey);
+      } else {
+        state.hiddenMapRouterLabelKeys.delete(routerKey);
+      }
+      saveHiddenMapRouterLabelKeys();
+    }
+
+    function clearHiddenMapRouterLabels() {
+      state.hiddenMapRouterLabelKeys.clear();
+      saveHiddenMapRouterLabelKeys();
+    }
+
+    function isMapRouterHidden(routerKey) {
+      return state.hiddenMapRouterKeys.has(routerKey);
+    }
+
+    function saveHiddenMapRouterKeys() {
+      saveStoredArray(hiddenMapRouterStorageKey, [...state.hiddenMapRouterKeys]);
+    }
+
+    function setMapRouterHidden(routerKey, hidden) {
+      if (hidden) {
+        state.hiddenMapRouterKeys.add(routerKey);
+      } else {
+        state.hiddenMapRouterKeys.delete(routerKey);
+      }
+      saveHiddenMapRouterKeys();
+    }
+
+    function clearHiddenMapRouters() {
+      state.hiddenMapRouterKeys.clear();
+      saveHiddenMapRouterKeys();
+    }
+
+    function normalizeDashboardMode(value) {
+      const mode = String(value || "").trim().toLocaleLowerCase();
+      if (Object.prototype.hasOwnProperty.call(dashboardModes, mode)) {
+        return mode;
+      }
+      return defaultDashboardMode;
+    }
+
+    function loadDashboardMode() {
+      try {
+        return normalizeDashboardMode(localStorage.getItem(dashboardModeStorageKey));
+      } catch {
+        return defaultDashboardMode;
+      }
+    }
+
+    function saveDashboardMode() {
+      localStorage.setItem(dashboardModeStorageKey, state.dashboardMode);
+    }
+
+    function getSelectedDashboardMode() {
+      return dashboardModes[state.dashboardMode] || dashboardModes[defaultDashboardMode];
+    }
+
+    function getSelectedBaselineScanCount() {
+      return getSelectedDashboardMode().baselineScans;
+    }
+
+    function getSelectedDashboardModeLabel() {
+      const selectedMode = getSelectedDashboardMode();
+      return `${selectedMode.label} mode`;
+    }
+
+    function isFieldReconstructionActive() {
+      return Boolean(state.geometry?.loaded);
+    }
+
+    function updateFieldBaselineWarning() {
+      const baselineScanCount = getSelectedBaselineScanCount();
+      if (isFieldReconstructionActive() && baselineScanCount < minimumReconstructionBaselineScans) {
+        elements.fieldBaselineWarning.textContent = `Field reconstruction is active with only ${baselineScanCount} baseline scans. Use the Mode selector to choose Reconstruction or Calibration for a steadier field. Relearn Positions only resets the map layout.`;
+        elements.fieldBaselineWarning.classList.add("visible");
+        return;
+      }
+
+      elements.fieldBaselineWarning.textContent = "";
+      elements.fieldBaselineWarning.classList.remove("visible");
+    }
+
+    function normalizeReconstructionMethod(value) {
+      const method = String(value || "").trim().toLocaleLowerCase();
+      if (method === regularizedReconstructionMethod) {
+        return regularizedReconstructionMethod;
+      }
+      return defaultReconstructionMethod;
+    }
+
+    function loadReconstructionMethod() {
+      try {
+        return normalizeReconstructionMethod(localStorage.getItem(reconstructionMethodStorageKey));
+      } catch {
+        return defaultReconstructionMethod;
+      }
+    }
+
+    function saveReconstructionMethod() {
+      localStorage.setItem(reconstructionMethodStorageKey, state.reconstructionMethod);
+    }
+
+    function formatExcludedNetworkNames(networkNames = state.excludedNetworkNames) {
+      return networkNames.join(", ");
+    }
+
+    function isNetworkExcluded(networkName) {
+      const normalizedName = String(networkName).toLocaleLowerCase();
+      return state.excludedNetworkNames.some((excludedName) => excludedName.toLocaleLowerCase() === normalizedName);
+    }
+
+    function setExcludedNetworkNames(networkNames) {
+      state.excludedNetworkNames = deduplicateNetworkNames(networkNames);
+      saveExcludedNetworkNames();
+      elements.excludedNetworksInput.value = formatExcludedNetworkNames();
+      renderFilterControls();
+    }
+
+    function getExcludedNetworkStatusText() {
+      if (!state.excludedNetworkNames.length) {
+        return "No SSIDs excluded";
+      }
+      return `Excluded SSIDs: ${formatExcludedNetworkNames()}`;
+    }
+
+    function renderFilterControls() {
+      elements.filterStatus.textContent = getExcludedNetworkStatusText();
+      renderExcludeRouterList();
+    }
+
+    function renderExcludeRouterList() {
+      elements.excludeRouterList.textContent = "";
+      if (!state.routers.length) {
+        elements.excludeRouterList.innerHTML = '<div class="empty-state">No visible candidate routers yet.</div>';
+        return;
+      }
+
+      state.routers.slice(0, maximumExcludeRouterRows).forEach((router) => {
+        const row = document.createElement("label");
+        row.className = "exclude-router-row";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = isNetworkExcluded(router.network_name);
+        checkbox.dataset.networkName = router.network_name;
+
+        const name = document.createElement("span");
+        name.className = "exclude-router-name";
+        name.textContent = router.network_name || "Hidden SSID";
+
+        const detail = document.createElement("span");
+        detail.className = "exclude-router-detail";
+        detail.textContent = `${router.averageSignal}%`;
+
+        row.appendChild(checkbox);
+        row.appendChild(name);
+        row.appendChild(detail);
+        elements.excludeRouterList.appendChild(row);
+      });
+    }
+
+    function createMapSettingsSnapshot() {
+      return state.routers.slice(0, maximumExcludeRouterRows).map((router) => ({
+        key: router.key,
+        alias: getRouterAlias(router.key),
+        networkName: router.network_name || "Hidden SSID",
+        hardwareAddress: router.hardware_address || "",
+        averageSignal: router.averageSignal
+      }));
+    }
+
+    function getMapSettingsContent(mode) {
+      if (mode === mapSettingsRouterMode) {
+        return {
+          title: "Grid Routers",
+          description: "Hide router points and paths from the floorplan only. Detection, records, and reconstruction stay active",
+          emptyText: "No visible routers yet.",
+          restoreText: "Show All Routers"
+        };
+      }
+
+      return {
+        title: "Grid Labels",
+        description: "Hide router labels and boxes only. Points, paths, detection, records, and reconstruction stay active",
+        emptyText: "No visible router labels yet.",
+        restoreText: "Show All Labels"
+      };
+    }
+
+    function getMapSettingsDetail(router, checked) {
+      if (state.activeMapSettingsMode === mapSettingsRouterMode) {
+        return checked ? "Router shown" : "Router hidden";
+      }
+
+      if (isMapRouterHidden(router.key)) {
+        return "Router hidden";
+      }
+
+      return checked ? "Label shown" : "Label hidden";
+    }
+
+    function renderMapSettingsModal() {
+      const content = getMapSettingsContent(state.activeMapSettingsMode);
+      elements.mapSettingsTitle.textContent = content.title;
+      elements.mapSettingsDescription.textContent = content.description;
+      elements.restoreMapSettingsButton.textContent = content.restoreText;
+      elements.mapSettingsList.textContent = "";
+
+      if (!state.mapSettingsSnapshot.length) {
+        elements.mapSettingsList.innerHTML = `<div class="empty-state">${content.emptyText}</div>`;
+        return;
+      }
+
+      state.mapSettingsSnapshot.forEach((router) => {
+        const row = document.createElement("label");
+        row.className = "exclude-router-row";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = state.activeMapSettingsMode === mapSettingsRouterMode
+          ? !isMapRouterHidden(router.key)
+          : !isMapRouterLabelHidden(router.key);
+        checkbox.dataset.routerKey = router.key;
+
+        const name = document.createElement("span");
+        name.className = "exclude-router-name";
+        name.textContent = `${router.alias} · ${router.networkName}`;
+
+        const detail = document.createElement("span");
+        detail.className = "exclude-router-detail";
+        detail.textContent = getMapSettingsDetail(router, checkbox.checked);
+
+        row.appendChild(checkbox);
+        row.appendChild(name);
+        row.appendChild(detail);
+        elements.mapSettingsList.appendChild(row);
+      });
+    }
+
+    function openMapSettingsModal(mode) {
+      state.activeMapSettingsMode = mode;
+      state.mapSettingsSnapshot = createMapSettingsSnapshot();
+      renderMapSettingsModal();
+      elements.mapSettingsModal.hidden = false;
+    }
+
+    function closeMapSettingsModal() {
+      elements.mapSettingsModal.hidden = true;
+      state.activeMapSettingsMode = null;
+      state.mapSettingsSnapshot = [];
+    }
+
+    function restartLiveStreamForFilterChange() {
+      if (state.liveSource) {
+        startLiveStream();
+        return;
+      }
+      render();
+    }
+
+    function appendExcludedNetworkParameters(parameters) {
+      if (!state.excludedNetworkNames.length) {
+        parameters.append("exclude", "");
+        return;
+      }
+
+      state.excludedNetworkNames.forEach((networkName) => {
+        parameters.append("exclude", networkName);
+      });
+    }
+
+    function createLiveStreamParameters() {
+      const parameters = new URLSearchParams({
+        baseline_scans: String(getSelectedBaselineScanCount()),
+        threshold: "2",
+        interval: liveSampleIntervalSeconds,
+        settle: liveScanSettleSeconds,
+        output: "live_motion_samples.csv",
+        refresh: "1",
+        adaptive: "1",
+        adaptation_rate: "0.15",
+        reconstruction: state.reconstructionMethod
+      });
+      appendExcludedNetworkParameters(parameters);
+      return parameters;
+    }
+
+    function resetDeleteRecordsButton() {
+      state.recordDeleteArmed = false;
+      elements.deleteRecordsButton.textContent = "Delete Records";
+      elements.deleteRecordsButton.classList.remove("primary");
+    }
+
+    async function deleteDashboardRecords() {
+      if (!location.protocol.startsWith("http")) {
+        elements.dataStatus.textContent = "Record deletion requires the live dashboard server.";
+        return;
+      }
+
+      stopLiveStream();
+      stopPlayback();
+      try {
+        const response = await fetch("/api/records", { method: "DELETE" });
+        if (!response.ok) {
+          throw new Error(`Delete failed with ${response.status}`);
+        }
+        const result = await response.json();
+        state.samples = [];
+        state.events = [];
+        state.currentEventIndex = 0;
+        render();
+        const deletedCount = result.deleted.length;
+        elements.dataStatus.textContent = `Deleted ${deletedCount} live record file${deletedCount === 1 ? "" : "s"}.`;
+        elements.liveStatus.textContent = "Live stream stopped. Start live to collect new records.";
+        resetDeleteRecordsButton();
+      } catch (error) {
+        elements.dataStatus.textContent = `Could not delete records: ${error.message}`;
+        resetDeleteRecordsButton();
+      }
+    }
+
+    elements.heatmapToggle.addEventListener("change", () => {
+      state.showHeatmap = elements.heatmapToggle.checked;
+      render();
+    });
+
+    elements.pathsToggle.addEventListener("change", () => {
+      state.showSignalPaths = elements.pathsToggle.checked;
+      renderMap();
+    });
+
+    elements.heatmapOpacitySlider.addEventListener("input", () => {
+      state.heatmapOpacityPercent = parseNumber(elements.heatmapOpacitySlider.value, defaultHeatmapOpacityPercent);
+      renderMap();
+    });
+
+    elements.eventSlider.addEventListener("input", () => {
+      state.currentEventIndex = parseNumber(elements.eventSlider.value);
+      stopPlayback();
+      render();
+    });
+
+    elements.previousButton.addEventListener("click", () => {
+      state.currentEventIndex = Math.max(0, state.currentEventIndex - 1);
+      stopPlayback();
+      render();
+    });
+
+    elements.nextButton.addEventListener("click", () => {
+      state.currentEventIndex = Math.min(state.events.length - 1, state.currentEventIndex + 1);
+      stopPlayback();
+      render();
+    });
+
+    elements.playButton.addEventListener("click", () => {
+      if (state.isPlaying) {
+        stopPlayback();
+        return;
+      }
+
+      state.isPlaying = true;
+      elements.playButton.textContent = "Pause";
+      state.playTimer = setInterval(() => {
+        if (!state.events.length || state.currentEventIndex >= state.events.length - 1) {
+          stopPlayback();
+          return;
+        }
+        state.currentEventIndex += 1;
+        render();
+      }, playbackIntervalMilliseconds);
+    });
+
+    elements.resetLayoutButton.addEventListener("click", () => {
+      state.manualPositions = {};
+      state.autoPositions = {};
+      saveManualPositions();
+      saveStoredObject(routerAutoLayoutStorageKey, state.autoPositions);
+      render();
+      elements.dataStatus.textContent = "Relearned visual router positions. The baseline warning is controlled by the Mode selector.";
+    });
+
+    elements.applyFiltersButton.addEventListener("click", () => {
+      setExcludedNetworkNames(splitNetworkNameList(elements.excludedNetworksInput.value));
+      restartLiveStreamForFilterChange();
+    });
+
+    elements.clearFiltersButton.addEventListener("click", () => {
+      setExcludedNetworkNames([]);
+      restartLiveStreamForFilterChange();
+    });
+
+    elements.dashboardModeSelect.addEventListener("change", () => {
+      state.dashboardMode = normalizeDashboardMode(elements.dashboardModeSelect.value);
+      elements.dashboardModeSelect.value = state.dashboardMode;
+      saveDashboardMode();
+      updateFieldBaselineWarning();
+      restartLiveStreamForFilterChange();
+    });
+
+    elements.reconstructionMethodSelect.addEventListener("change", () => {
+      state.reconstructionMethod = normalizeReconstructionMethod(elements.reconstructionMethodSelect.value);
+      elements.reconstructionMethodSelect.value = state.reconstructionMethod;
+      saveReconstructionMethod();
+      restartLiveStreamForFilterChange();
+    });
+
+    elements.excludeRouterList.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) || !target.dataset.networkName) {
+        return;
+      }
+
+      const networkName = target.dataset.networkName;
+      const currentNames = state.excludedNetworkNames.filter((excludedName) => (
+        excludedName.toLocaleLowerCase() !== networkName.toLocaleLowerCase()
+      ));
+      if (target.checked) {
+        currentNames.push(networkName);
+      }
+      setExcludedNetworkNames(currentNames);
+      restartLiveStreamForFilterChange();
+    });
+
+    elements.openRouterLabelsButton.addEventListener("click", () => openMapSettingsModal(mapSettingsLabelMode));
+
+    elements.openRouterVisibilityButton.addEventListener("click", () => openMapSettingsModal(mapSettingsRouterMode));
+
+    elements.closeMapSettingsButton.addEventListener("click", closeMapSettingsModal);
+
+    elements.mapSettingsModal.addEventListener("click", (event) => {
+      if (event.target === elements.mapSettingsModal) {
+        closeMapSettingsModal();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !elements.mapSettingsModal.hidden) {
+        closeMapSettingsModal();
+      }
+    });
+
+    elements.mapSettingsList.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) || !target.dataset.routerKey || !state.activeMapSettingsMode) {
+        return;
+      }
+
+      if (state.activeMapSettingsMode === mapSettingsRouterMode) {
+        setMapRouterHidden(target.dataset.routerKey, !target.checked);
+      } else {
+        setMapRouterLabelHidden(target.dataset.routerKey, !target.checked);
+      }
+
+      renderMap();
+      renderMapSettingsModal();
+    });
+
+    elements.restoreMapSettingsButton.addEventListener("click", () => {
+      if (state.activeMapSettingsMode === mapSettingsRouterMode) {
+        clearHiddenMapRouters();
+        elements.dataStatus.textContent = "All routers are visible on the grid again.";
+      } else {
+        clearHiddenMapRouterLabels();
+        elements.dataStatus.textContent = "All router labels are visible on the grid again.";
+      }
+
+      renderMap();
+      renderMapSettingsModal();
+    });
+
+    elements.deleteRecordsButton.addEventListener("click", () => {
+      if (!state.recordDeleteArmed) {
+        state.recordDeleteArmed = true;
+        elements.deleteRecordsButton.textContent = "Confirm Delete";
+        elements.deleteRecordsButton.classList.add("primary");
+        elements.dataStatus.textContent = "Click Confirm Delete to remove live dashboard record files.";
+        return;
+      }
+
+      deleteDashboardRecords();
+    });
+
+    elements.startLiveButton.addEventListener("click", () => {
+      startLiveStream();
+    });
+
+    elements.stopLiveButton.addEventListener("click", () => {
+      stopLiveStream();
+    });
+
+    elements.refreshRemoteReceiversButton.addEventListener("click", () => {
+      loadRemoteReceivers();
+    });
+
+    elements.sampleFileInput.addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+      stopLiveStream();
+      state.samples = normalizeSamples(parseCsv(await file.text()));
+      state.currentEventIndex = Math.min(state.currentEventIndex, Math.max(state.events.length - 1, 0));
+      elements.dataStatus.textContent = `Loaded ${file.name}`;
+      elements.sourceMode.textContent = "CSV replay mode";
+      render();
+    });
+
+    elements.eventFileInput.addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+      stopLiveStream();
+      state.events = normalizeEvents(parseCsv(await file.text()));
+      state.currentEventIndex = Math.max(state.events.length - 1, 0);
+      elements.dataStatus.textContent = `Loaded ${file.name}`;
+      elements.sourceMode.textContent = "CSV replay mode";
+      render();
+    });
+
+    function startLiveStream() {
+      if (!location.protocol.startsWith("http")) {
+        elements.modeWarning.classList.add("visible");
+        elements.liveStatus.textContent = "Replay mode. Use the live server URL to connect to real scans.";
+        elements.sourceMode.textContent = "CSV replay mode";
+        loadDefaultData();
+        return;
+      }
+
+      stopLiveStream();
+      stopPlayback();
+      resetDeleteRecordsButton();
+      state.samples = [];
+      state.events = [];
+      state.currentEventIndex = 0;
+      state.baselineCount = 0;
+      state.baselineTotal = 0;
+      elements.liveStatus.textContent = `${getSelectedDashboardModeLabel()} · connecting to live WiFi scanner · ${getExcludedNetworkStatusText()}`;
+      elements.dataStatus.textContent = "Live stream active. CSV replay is paused.";
+      elements.modeWarning.classList.remove("visible");
+      elements.sourceMode.textContent = "Live scanner connecting";
+      render();
+
+      const parameters = createLiveStreamParameters();
+
+      state.liveSource = new EventSource(`/api/live?${parameters.toString()}`);
+      state.liveSource.addEventListener("baseline", (event) => {
+        const payload = JSON.parse(event.data);
+        state.baselineCount = payload.scan;
+        state.baselineTotal = payload.total;
+        elements.liveStatus.textContent = `${getSelectedDashboardModeLabel()} · building baseline ${payload.scan}/${payload.total} · candidates ${payload.candidate_count}`;
+      });
+      state.liveSource.addEventListener("ready", (event) => {
+        const payload = JSON.parse(event.data);
+        elements.liveStatus.textContent = `Live scanner ready · watching ${payload.baselines.length} router signals`;
+      });
+      state.liveSource.addEventListener("snapshot", (event) => {
+        const payload = JSON.parse(event.data);
+        const assessment = payload.assessment;
+        state.samples.push(...payload.samples);
+        state.samples = state.samples.slice(-maximumRetainedSamples);
+        state.events.push({
+          collected_at: payload.collected_at,
+          status: assessment.status,
+          score: assessment.score,
+          changed_signal_count: assessment.changed_signal_count,
+          watched_signal_count: assessment.watched_signal_count,
+          strongest_signal_delta: assessment.strongest_signal_delta,
+          changes: payload.changes,
+          sensing_event: payload.sensing_event || null
+        });
+        state.events = state.events.slice(-maximumRetainedEvents);
+        state.currentEventIndex = state.events.length - 1;
+        elements.liveStatus.textContent = `Live · ${humanizeStatus(assessment.status)} · score ${assessment.score.toFixed(1)}`;
+        elements.sourceMode.textContent = "Live scanner active";
+        render();
+      });
+      state.liveSource.onerror = () => {
+        elements.liveStatus.textContent = "Live stream disconnected. Start the live server or use CSV replay.";
+        elements.sourceMode.textContent = "Live scanner disconnected";
+        elements.modeWarning.classList.add("visible");
+        if (!state.samples.length && !state.events.length) {
+          loadDefaultData();
+        }
+      };
+    }
+
+    function stopLiveStream() {
+      if (!state.liveSource) {
+        return;
+      }
+
+      state.liveSource.close();
+      state.liveSource = null;
+      elements.liveStatus.textContent = "Live stream stopped.";
+      elements.sourceMode.textContent = "Live scanner stopped";
+    }
+
+    function stopPlayback() {
+      state.isPlaying = false;
+      elements.playButton.textContent = "Play";
+      if (state.playTimer) {
+        clearInterval(state.playTimer);
+        state.playTimer = null;
+      }
+    }
+
+    async function loadFirstAvailable(paths) {
+      for (const path of paths) {
+        try {
+          const response = await fetch(path, { cache: "no-store" });
+          if (response.ok) {
+            return { path, text: await response.text() };
+          }
+        } catch {
+          continue;
+        }
+      }
+      return null;
+    }
+
+    async function loadDefaultData() {
+      const sampleResult = await loadFirstAvailable(defaultSampleFiles);
+      const eventResult = await loadFirstAvailable(defaultEventFiles);
+
+      if (sampleResult) {
+        state.samples = normalizeSamples(parseCsv(sampleResult.text));
+      }
+
+      if (eventResult) {
+        state.events = normalizeEvents(parseCsv(eventResult.text));
+        state.currentEventIndex = Math.max(state.events.length - 1, 0);
+      }
+
+      if (sampleResult || eventResult) {
+        elements.dataStatus.textContent = `Loaded ${sampleResult?.path || "no sample file"} and ${eventResult?.path || "no event file"}.`;
+      } else {
+        elements.dataStatus.textContent = "No default CSVs loaded. Use the file inputs.";
+      }
+
+      if (!location.protocol.startsWith("http")) {
+        elements.modeWarning.classList.add("visible");
+        elements.liveStatus.textContent = "Replay mode. Start the live server and open the HTTP URL for live scans.";
+        elements.sourceMode.textContent = "CSV replay mode";
+      }
+
+      render();
+    }
+
+    async function hasLiveApi() {
+      if (!location.protocol.startsWith("http")) {
+        return false;
+      }
+
+      try {
+        const response = await fetch(liveApiStatusPath, { cache: "no-store" });
+        if (!response.ok) {
+          return false;
+        }
+        const payload = await response.json();
+        return payload.live_api === true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function loadRemoteReceivers() {
+      if (!location.protocol.startsWith("http")) {
+        state.remoteReceivers = [];
+        state.remoteReceiverLastError = "Replay mode: remote receiver status needs the live server.";
+        renderRemoteReceivers();
+        return;
+      }
+
+      try {
+        const response = await fetch(remoteReceiversApiPath, { cache: "no-store" });
+        if (!response.ok) {
+          state.remoteReceivers = [];
+          state.remoteReceiverLastError = "Remote receiver API is not available from this server.";
+          renderRemoteReceivers();
+          return;
+        }
+
+        const payload = await response.json();
+        state.remoteReceivers = Array.isArray(payload.receivers) ? payload.receivers : [];
+        state.remoteReceiverLastError = "";
+      } catch {
+        state.remoteReceivers = [];
+        state.remoteReceiverLastError = "Could not load remote receiver status.";
+      }
+      renderRemoteReceivers();
+    }
+
+    function startRemoteReceiverPolling() {
+      if (state.remoteReceiverTimer) {
+        clearInterval(state.remoteReceiverTimer);
+      }
+
+      loadRemoteReceivers();
+      state.remoteReceiverTimer = setInterval(loadRemoteReceivers, remoteReceiverRefreshMilliseconds);
+    }
+
+    async function loadGeometryConfig() {
+      state.geometry = null;
+      if (!location.protocol.startsWith("http")) {
+        return;
+      }
+
+      try {
+        const response = await fetch(geometryApiPath, { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+        const payload = await response.json();
+        state.geometry = payload.loaded ? payload : null;
+      } catch {
+        state.geometry = null;
+      }
+    }
+
+    async function initializeDashboard() {
+      await loadGeometryConfig();
+      if (await hasLiveApi()) {
+        startRemoteReceiverPolling();
+        startLiveStream();
+        return;
+      }
+
+      await loadDefaultData();
+      elements.modeWarning.classList.add("visible");
+      elements.liveStatus.textContent = "Replay mode. This server does not expose /api/live; open http://127.0.0.1:8877/wifi_motion_dashboard.html for live scans.";
+      elements.sourceMode.textContent = "CSV replay mode";
+      loadRemoteReceivers();
+    }
+
+    elements.excludedNetworksInput.value = formatExcludedNetworkNames();
+    elements.dashboardModeSelect.value = state.dashboardMode;
+    elements.reconstructionMethodSelect.value = state.reconstructionMethod;
+    renderFilterControls();
+    updateFieldBaselineWarning();
+    initializeDashboard();
+  </script>
+</body>
+</html>

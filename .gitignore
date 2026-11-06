@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Local runtime/browser profiles
+chrome-*/
+
+# Generated/package artifacts
+ruview_artifacts/
+*.whl
+
+# Logs and temporary files
+*.log
+*.tmp
+*_sensing_events.jsonl
+
+# Local WiFi captures
+*_samples.csv
+*_motion_events.csv
+live_*.csv
+experiments/raw/
+config/room_geometry.json
+
+.DS_Store
+Thumbs.db

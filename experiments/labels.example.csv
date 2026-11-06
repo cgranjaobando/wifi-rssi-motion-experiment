@@ -1,0 +1,4 @@
+start_time,end_time,label,x_m,y_m,shape,notes
+2026-05-29T02:14:00Z,2026-05-29T02:14:20Z,empty_room,,,,baseline
+2026-05-29T02:14:30Z,2026-05-29T02:14:45Z,standing,2.0,1.5,circle,person standing near desk
+2026-05-29T02:15:00Z,2026-05-29T02:15:15Z,walking_path,1.0;4.0,2.0,line,left to right
